@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}就诊详情{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>就诊详情</h1><p class="text-secondary mb-0">预约编号：{{ visit.appointment.appointment_no }}</p></div>
+    <div class="page-actions">
+        <a href="{% url 'visit_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% if can_manage %}<a href="{% url 'visit_edit' visit.id %}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>就诊处理</a>{% endif %}
+    </div>
+</div>
+
+<div class="card detail-card mb-3">
+    <div class="card-header"><h2 class="card-title">就诊信息</h2><span class="badge status-badge status-{{ visit.status|lower }}">{{ visit.get_status_display|default:visit.status }}</span></div>
+    <div class="card-body">
+        <dl class="row detail-list">
+            <dt class="col-sm-3 col-lg-2">预约编号</dt><dd class="col-sm-9 col-lg-4 fw-medium">{{ visit.appointment.appointment_no }}</dd>
+            <dt class="col-sm-3 col-lg-2">就诊状态</dt><dd class="col-sm-9 col-lg-4">{{ visit.get_status_display|default:visit.status }}</dd>
+            <dt class="col-sm-3 col-lg-2">患者姓名</dt><dd class="col-sm-9 col-lg-4">{{ visit.appointment.patient.first_name|default:visit.appointment.patient.username }}</dd>
+            <dt class="col-sm-3 col-lg-2">接诊医师</dt><dd class="col-sm-9 col-lg-4">{{ visit.appointment.schedule.doctor.user.first_name|default:visit.appointment.schedule.doctor.user.username }}</dd>
+            <dt class="col-sm-3 col-lg-2">就诊时间</dt><dd class="col-sm-9 col-lg-4">{{ visit.visit_time|date:"Y-m-d H:i:s" }}</dd>
+            <dt class="col-sm-3 col-lg-2">所属科室</dt><dd class="col-sm-9 col-lg-4">{{ visit.appointment.schedule.doctor.department|default:"-" }}</dd>
+        </dl>
+        <div class="medical-record">
+            <section><h3>诊断</h3><div class="detail-text">{{ visit.diagnosis|default:"暂无诊断记录"|linebreaksbr }}</div></section>
+            <section><h3>治疗方案</h3><div class="detail-text">{{ visit.treatment|default:"暂无治疗方案"|linebreaksbr }}</div></section>
+            <section><h3>处方</h3><div class="detail-text">{{ visit.prescription|default:"暂无处方记录"|linebreaksbr }}</div></section>
+            <section><h3>异常备注</h3><div class="detail-text">{{ visit.note|default:"暂无异常备注"|linebreaksbr }}</div></section>
+        </div>
+        <div class="attachment-row">
+            <strong>相关附件：</strong>
+            {% if visit.attachment %}<a href="{{ visit.attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-paperclip me-1"></i>查看或下载附件</a>{% else %}<span class="text-secondary">未上传附件</span>{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">状态流转与操作历史</h2></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>操作时间</th><th>操作人</th><th>操作内容</th><th>备注</th></tr></thead>
+                <tbody>
+                {% for history in histories %}
+                    <tr><td>{{ history.created_at|date:"Y-m-d H:i:s" }}</td><td>{{ history.operator.first_name|default:history.operator.username }}</td><td>{{ history.action }}</td><td class="detail-text">{{ history.note|default:"-"|linebreaksbr }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="4" class="empty-state">暂无操作历史</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

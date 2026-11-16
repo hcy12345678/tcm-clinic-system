@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>预约登记 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="appointments">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1 id="page-title">新建预约</h1>
+          <div class="sub">提交后系统自动生成 YY 开头的预约编号，并实时校验剩余号源</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-light" href="appointments.html"><i class="bi bi-arrow-left"></i> 返回列表</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="appointment-form" class="form-grid" novalidate>
+          <div class="field full" id="patient-field">
+            <label for="patient">就诊患者</label>
+            <select id="patient" name="patient"></select>
+          </div>
+          <div class="field full">
+            <label for="schedule">选择排班</label>
+            <select id="schedule" name="schedule" required></select>
+            <span class="hint">仅列出今天及以后、状态为「开放预约」的排班</span>
+          </div>
+          <div class="field full">
+            <label for="symptoms">症状描述</label>
+            <textarea id="symptoms" name="symptoms" placeholder="如：近一周失眠多梦，晨起口干"></textarea>
+          </div>
+          <div class="field" id="status-field">
+            <label for="status">预约状态</label>
+            <select id="status" name="status"></select>
+          </div>
+          <div class="full form-actions">
+            <button type="submit" class="btn btn-primary" id="save-btn"><i class="bi bi-check2-circle"></i> 提交预约</button>
+            <a class="btn btn-light" href="appointments.html">取消</a>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('appointments');
+      if (!me) return;
+
+      const id = UI.qs('id');
+      const form = document.getElementById('appointment-form');
+      const saveBtn = document.getElementById('save-btn');
+      const scheduleSelect = document.getElementById('schedule');
+      const patientSelect = document.getElementById('patient');
+
+      if (me.user.role === 'PATIENT') {
+        document.getElementById('patient-field').style.display = 'none';
+        document.getElementById('status-field').style.display = 'none';
+      }
+
+      try {
+        const options = await API.get('/appointments/options/');
+        scheduleSelect.innerHTML = options.schedules.length
+          ? options.schedules.map((item) => `<option value="${item.value}">${UI.escapeHtml(item.label)}</option>`).join('')
+          : '<option value="">暂无可预约的排班</option>';
+        if (me.user.role !== 'PATIENT') {
+          patientSelect.innerHTML = options.patients.map((item) =>
+            `<option value="${item.value}">${UI.escapeHtml(item.label)}</option>`).join('');
+          document.getElementById('status').innerHTML = options.statuses.map((item) =>
+            `<option value="${item.value}">${UI.escapeHtml(item.label)}</option>`).join('');
+        }
+      } catch (error) {
+        UI.toast(error.message, 'error');
+      }
+
+      if (id) {
+        document.getElementById('page-title').textContent = '编辑预约';
+        try {
+          const appointment = await API.get(`/appointments/${id}/`);
+          const exists = Array.from(scheduleSelect.options).some((option) => option.value === String(appointment.schedule.id));
+          if (!exists) {
+            const option = document.createElement('option');
+            option.value = String(appointment.schedule.id);
+            option.textContent = `${appointment.schedule.date} ${appointment.schedule.start_time}｜${appointment.schedule.doctor_name}`;
+            scheduleSelect.appendChild(option);
+          }
+          scheduleSelect.value = String(appointment.schedule.id);
+          document.getElementById('symptoms').value = appointment.symptoms || '';
+          if (me.user.role !== 'PATIENT') {
+            patientSelect.value = String(appointment.patient_id);
+            document.getElementById('status').value = appointment.status;
+          }
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const data = UI.formToObject(form);
+        if (!data.schedule) {
+          UI.toast('请选择排班', 'error');
+          return;
+        }
+        UI.setLoading(saveBtn, true, '提交中…');
+        try {
+          if (id) {
+            await API.put(`/appointments/${id}/`, data);
+            UI.toast('预约已更新');
+            setTimeout(() => { location.href = `appointment-detail.html?id=${id}`; }, 500);
+          } else {
+            const created = await API.post('/appointments/', data);
+            UI.toast('预约成功，编号 ' + created.appointment_no);
+            setTimeout(() => { location.href = `appointment-detail.html?id=${created.id}`; }, 600);
+          }
+        } catch (error) {
+          UI.showFieldErrors(error);
+          UI.toast(error.message, 'error');
+          UI.setLoading(saveBtn, false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

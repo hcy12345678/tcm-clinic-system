@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排班详情 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="schedules">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>排班详情</h1>
+          <div class="sub" id="page-sub">正在加载…</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-light" href="schedules.html"><i class="bi bi-arrow-left"></i> 返回列表</a>
+          <a class="btn btn-primary" id="edit-link" href="#"><i class="bi bi-pencil"></i> 编辑排班</a>
+        </div>
+      </div>
+
+      <div class="card"><h2>排班信息</h2><div class="detail-grid" id="detail"></div></div>
+      <div class="card"><h2>该排班下的预约</h2><div id="appointment-list"></div></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('schedules');
+      if (!me) return;
+
+      const id = UI.qs('id');
+      if (!id) { location.href = 'schedules.html'; return; }
+      document.getElementById('edit-link').href = `schedule-form.html?id=${id}`;
+
+      function item(label, value) {
+        return `<div class="detail-item"><span class="k">${label}</span><span class="v">${value}</span></div>`;
+      }
+
+      try {
+        const schedule = await API.get(`/schedules/${id}/`);
+        document.getElementById('page-sub').textContent =
+          `${schedule.doctor_name} · ${schedule.date} ${schedule.start_time}-${schedule.end_time}`;
+        document.getElementById('detail').innerHTML = [
+          item('出诊医师', UI.escapeHtml(schedule.doctor_name)),
+          item('医师工号', UI.escapeHtml(schedule.employee_no)),
+          item('所属科室', UI.escapeHtml(schedule.department)),
+          item('出诊日期', UI.escapeHtml(schedule.date)),
+          item('出诊时间', `${schedule.start_time} - ${schedule.end_time}`),
+          item('诊室', UI.escapeHtml(schedule.room)),
+          item('号源总数', schedule.total_slots),
+          item('已预约', schedule.booked_slots),
+          item('剩余号源', `<strong>${schedule.remaining_slots}</strong>`),
+          item('排班状态', UI.badge(schedule.status, schedule.status_display)),
+        ].join('');
+
+        const data = await API.get('/appointments/', { page: 1, page_size: 100 });
+        const rows = data.results.filter((row) => row.schedule.id === Number(id));
+        document.getElementById('appointment-list').innerHTML = UI.table([
+          { title: '预约编号', render: (row) => UI.escapeHtml(row.appointment_no) },
+          { title: '患者', render: (row) => UI.escapeHtml(row.patient_name) },
+          { title: '联系电话', render: (row) => UI.escapeHtml(row.patient_phone || '-') },
+          { title: '状态', render: (row) => UI.badge(row.status, row.status_display) },
+          { title: '预约时间', render: (row) => UI.escapeHtml(row.created_at) },
+          { title: '操作', render: (row) => `<a class="link-btn" href="appointment-detail.html?id=${row.id}">查看</a>` },
+        ], rows, { empty: '该排班暂无预约。' });
+      } catch (error) {
+        UI.toast(error.message, 'error');
+      }
+    })();
+  </script>
+</body>
+</html>

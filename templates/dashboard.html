@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}工作台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>工作台</h1>
+        <p class="text-secondary mb-0">您好，{{ request.user.first_name|default:request.user.username }}，欢迎使用中医门诊管理系统。</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-person-badge"></i></span>
+                <div><span class="stat-label">医师总数</span><strong class="stat-value">{{ doctor_count|default:0 }}</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <span class="stat-icon bg-success-subtle text-success"><i class="bi bi-people"></i></span>
+                <div><span class="stat-label">患者总数</span><strong class="stat-value">{{ patient_count|default:0 }}</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <span class="stat-icon bg-info-subtle text-info"><i class="bi bi-journal-check"></i></span>
+                <div><span class="stat-label">今日预约</span><strong class="stat-value">{{ today_appointment_count|default:0 }}</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <span class="stat-icon bg-warning-subtle text-warning"><i class="bi bi-calendar2-check"></i></span>
+                <div><span class="stat-label">今日排班</span><strong class="stat-value">{{ today_schedule_count|default:0 }}</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">最近预约</h2>
+        {% if perms.can_appointment %}<a href="{% url 'appointment_list' %}" class="btn btn-sm btn-outline-primary">查看全部</a>{% endif %}
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>预约编号</th><th>患者</th><th>医师</th><th>就诊日期</th><th>状态</th></tr></thead>
+                <tbody>
+                {% for appointment in recent_appointments %}
+                    <tr>
+                        <td class="fw-medium">{{ appointment.appointment_no }}</td>
+                        <td>{{ appointment.patient.first_name|default:appointment.patient.username }}</td>
+                        <td>{{ appointment.schedule.doctor.user.first_name|default:appointment.schedule.doctor.user.username }}</td>
+                        <td>{{ appointment.schedule.date|date:"Y-m-d" }}</td>
+                        <td><span class="badge status-badge status-{{ appointment.status|lower }}">{{ appointment.get_status_display|default:appointment.status }}</span></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="empty-state">暂无最近预约记录</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>预约挂号 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="appointments">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>预约挂号</h1>
+          <div class="sub" id="scope-tip">查询预约状态、维护预约明细</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="appointment-form.html"><i class="bi bi-plus-lg"></i> 新建预约</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <form class="filter-bar" id="filter-form">
+          <div class="field">
+            <label>关键词</label>
+            <input type="text" name="keyword" placeholder="预约编号 / 患者 / 医师">
+          </div>
+          <div class="field">
+            <label>状态</label>
+            <select name="status">
+              <option value="">全部状态</option>
+              <option value="BOOKED">已预约</option>
+              <option value="COMPLETED">已完成</option>
+              <option value="CANCELLED">已取消</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>医师</label>
+            <select name="doctor" id="doctor-filter"><option value="">全部医师</option></select>
+          </div>
+          <div class="field">
+            <label>开始日期</label>
+            <input type="date" name="start_date">
+          </div>
+          <div class="field">
+            <label>结束日期</label>
+            <input type="date" name="end_date">
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> 查询</button>
+          <button type="reset" class="btn btn-light">重置</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div id="appointment-table"></div>
+        <div class="pagination" id="appointment-pagination"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('appointments');
+      if (!me) return;
+
+      const state = { page: 1, params: {} };
+      const filterForm = document.getElementById('filter-form');
+
+      document.getElementById('scope-tip').textContent = me.user.role === 'PATIENT'
+        ? '这里只显示你的预约记录'
+        : me.user.role === 'DOCTOR' ? '这里只显示你排班下的预约' : '显示全部预约记录';
+
+      try {
+        const doctors = await API.get('/doctors/');
+        document.getElementById('doctor-filter').innerHTML =
+          '<option value="">全部医师</option>' +
+          doctors.map((item) => `<option value="${item.id}">${UI.escapeHtml(item.name)}（${UI.escapeHtml(item.department)}）</option>`).join('');
+      } catch (error) { /* 忽略 */ }
+
+      function columns() {
+        return [
+          { title: '预约编号', render: (row) => `<a class="link-btn" href="appointment-detail.html?id=${row.id}">${UI.escapeHtml(row.appointment_no)}</a>` },
+          { title: '患者', render: (row) => UI.escapeHtml(row.patient_name) },
+          { title: '医师', render: (row) => UI.escapeHtml(row.schedule.doctor_name) },
+          { title: '科室', render: (row) => UI.escapeHtml(row.schedule.department) },
+          { title: '就诊日期', render: (row) => `${UI.escapeHtml(row.schedule.date)} ${UI.escapeHtml(row.schedule.start_time)}` },
+          { title: '状态', render: (row) => UI.badge(row.status, row.status_display) },
+          { title: '预约时间', render: (row) => UI.escapeHtml(row.created_at) },
+          {
+            title: '操作',
+            render: (row) => {
+              const links = [`<a class="link-btn" href="appointment-detail.html?id=${row.id}">详情</a>`];
+              if (row.status === 'BOOKED') {
+                links.push(`<a class="link-btn" href="appointment-form.html?id=${row.id}">编辑</a>`);
+                links.push(`<button class="link-btn danger" data-cancel="${row.id}">取消</button>`);
+              }
+              if (row.visit_id) {
+                links.push(`<a class="link-btn" href="visit-detail.html?id=${row.visit_id}">就诊记录</a>`);
+              }
+              return `<div class="actions-cell">${links.join('')}</div>`;
+            },
+          },
+        ];
+      }
+
+      async function load(page) {
+        state.page = page || 1;
+        try {
+          const data = await API.get('/appointments/', Object.assign({ page: state.page }, state.params));
+          document.getElementById('appointment-table').innerHTML = UI.table(columns(), data.results, { empty: '没有符合条件的预约。' });
+          UI.pagination(document.getElementById('appointment-pagination'), data, load);
+          UI.$$('[data-cancel]').forEach((button) => {
+            button.addEventListener('click', () => cancel(button.dataset.cancel));
+          });
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      async function cancel(id) {
+        const confirmed = await UI.confirm('取消后该号源会被释放，确定取消这条预约吗？', { title: '取消预约', okText: '取消预约', danger: true });
+        if (!confirmed) return;
+        try {
+          await API.post(`/appointments/${id}/cancel/`);
+          UI.toast('预约已取消');
+          load(state.page);
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      filterForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.params = UI.formToObject(filterForm);
+        load(1);
+      });
+      filterForm.addEventListener('reset', () => {
+        state.params = {};
+        setTimeout(() => load(1), 0);
+      });
+
+      load(1);
+    })();
+  </script>
+</body>
+</html>

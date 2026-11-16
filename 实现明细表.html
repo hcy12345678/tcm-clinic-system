@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中医门诊预约系统 —— 实现明细表</title>
+<style>
+  :root{
+    --ink:#1f2937; --sub:#5b6b73; --line:#dbe7e4; --bg:#f6faf9;
+    --brand:#0f766e; --brand-2:#14b8a6; --brand-soft:#e8f6f3; --accent:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 28px 64px; background:var(--bg); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    font-size:14px; line-height:1.75;
+  }
+  .wrap{max-width:1180px; margin:0 auto}
+  header{
+    background:linear-gradient(135deg,#0f766e 0%,#14b8a6 100%);
+    color:#fff; border-radius:16px; padding:28px 32px; margin-bottom:26px;
+    box-shadow:0 10px 26px rgba(15,118,110,.18);
+  }
+  header h1{margin:0 0 8px; font-size:26px; letter-spacing:.5px}
+  header p{margin:0; opacity:.92; font-size:13.5px}
+  .meta{margin-top:14px; display:flex; flex-wrap:wrap; gap:10px}
+  .meta span{
+    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28);
+    padding:3px 11px; border-radius:999px; font-size:12.5px;
+  }
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:28px}
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .card b{display:block; font-size:23px; color:var(--brand); line-height:1.2}
+  .card small{color:var(--sub); font-size:12.5px}
+  h2{
+    font-size:18px; margin:34px 0 12px; padding-left:12px; border-left:5px solid var(--brand-2);
+    letter-spacing:.3px;
+  }
+  h2 em{font-style:normal; color:var(--sub); font-size:12.5px; font-weight:400; margin-left:8px}
+  table{
+    width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden;
+    box-shadow:0 1px 2px rgba(31,41,55,.05); margin-bottom:10px; font-size:13.2px;
+  }
+  thead th{
+    background:var(--brand-soft); color:#0b5d56; text-align:left; font-weight:600;
+    padding:10px 12px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  tbody td{padding:9px 12px; border-bottom:1px solid #eef4f2; vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:#fbfdfc}
+  code{
+    background:#f1f5f4; border:1px solid #e2ece9; border-radius:5px; padding:1px 5px;
+    font-family:Consolas,"Courier New",monospace; font-size:12.2px; color:#0b5d56;
+  }
+  .tag{
+    display:inline-block; padding:1px 8px; border-radius:999px; font-size:11.5px;
+    background:var(--brand-soft); color:#0b5d56; border:1px solid #cfe8e3; white-space:nowrap;
+  }
+  .tag.warn{background:#fef3e2; color:#92400e; border-color:#f7dfba}
+  .tag.gray{background:#f3f4f6; color:#4b5563; border-color:#e5e7eb}
+  .note{
+    background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent);
+    border-radius:8px; padding:12px 16px; font-size:13px; color:#4b5563; margin:10px 0 4px;
+  }
+  footer{margin-top:38px; color:var(--sub); font-size:12.5px; text-align:center}
+  @media print{
+    body{background:#fff; padding:0; font-size:12px}
+    header{box-shadow:none; border-radius:0}
+    table{box-shadow:none; page-break-inside:avoid}
+    h2{page-break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>中医门诊预约系统 · 实现明细表</h1>
+  <p>Python + Django + MySQL/SQLite + Bootstrap/ECharts 前后端分离实现，覆盖登录注册、医师排班、预约挂号、就诊登记、查询统计与权限管理。</p>
+  <div class="meta">
+    <span>Django 5.x</span><span>MySQL 8（线上 SQLite）</span><span>pandas 统计</span>
+    <span>ECharts 5 图表</span><span>原生 JS + Fetch</span><span>2026-11-12</span>
+  </div>
+</header>
+
+<div class="cards">
+  <div class="card"><b>8</b><small>数据表（模型）</small></div>
+  <div class="card"><b>22</b><small>后端 API 接口</small></div>
+  <div class="card"><b>17</b><small>前端页面</small></div>
+  <div class="card"><b>2883</b><small>Python 行数</small></div>
+  <div class="card"><b>2074</b><small>HTML 行数</small></div>
+  <div class="card"><b>699</b><small>JS + CSS 行数</small></div>
+</div>
+
+<h2>一、技术架构分层 <em>自下而上五个层次</em></h2>
+<table>
+  <thead><tr><th style="width:110px">层次</th><th style="width:230px">技术选型</th><th>承担职责</th><th style="width:190px">对应文件</th></tr></thead>
+  <tbody>
+    <tr><td>数据层</td><td>MySQL 8 / SQLite 3</td><td>业务数据持久化，Django ORM 映射，迁移脚本统一建表</td><td><code>clinic/migrations/0001_initial.py</code></td></tr>
+    <tr><td>模型层</td><td>Django ORM（8 个模型）</td><td>字段定义、唯一约束、状态枚举、业务校验（<code>clean()</code>）、关联关系</td><td><code>clinic/models.py</code></td></tr>
+    <tr><td>接口层</td><td>Django 函数视图 + JSON</td><td>22 个 REST 风格接口，统一 <code>ok()/fail()</code> 响应包，权限装饰器拦截</td><td><code>clinic/api.py</code>、<code>api_urls.py</code></td></tr>
+    <tr><td>前端层</td><td>原生 HTML/CSS/JS + ECharts</td><td>17 个静态页面，<code>fetch</code> 调接口渲染，无框架依赖，浏览器直接运行</td><td><code>frontend/*.html</code>、<code>assets/js/*.js</code></td></tr>
+    <tr><td>运行层</td><td>runserver / 平台反向代理</td><td>监听 <code>$PORT</code> 或 8020，静态资源由 Django 直接托管</td><td><code>start.sh</code>、<code>config/settings.py</code></td></tr>
+  </tbody>
+</table>
+
+<h2>二、工程结构与文件职责</h2>
+<table>
+  <thead><tr><th style="width:230px">路径</th><th style="width:90px">规模</th><th>职责说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>config/settings.py</code></td><td>135 行</td><td>全局配置：数据库、时区、静态目录、CSRF 信任域、自定义用户模型、登录跳转</td></tr>
+    <tr><td><code>config/urls.py</code></td><td>25 行</td><td>路由总入口：<code>/api/</code> 走接口，<code>/app/</code> 托管前端页面，<code>/ssr/</code> 保留服务端渲染旧版</td></tr>
+    <tr><td><code>clinic/models.py</code></td><td>约 230 行</td><td>8 个模型 + 状态枚举 + 号源计算属性 + 唯一约束</td></tr>
+    <tr><td><code>clinic/api.py</code></td><td>约 860 行</td><td>全部接口实现、序列化函数、权限装饰器、分页与数据范围过滤</td></tr>
+    <tr><td><code>clinic/decorators.py</code></td><td>38 行</td><td>服务端渲染版权限装饰器：<code>menu_required(field)</code>、<code>staff_required</code></td></tr>
+    <tr><td><code>clinic/statistics.py</code></td><td>90 行</td><td>pandas 数据清洗与三维汇总（日期趋势 / 状态分布 / 科室分布）</td></tr>
+    <tr><td><code>clinic/audit.py</code></td><td>20 行</td><td>操作日志写入：模块、动作、对象、详情、IP</td></tr>
+    <tr><td><code>clinic/forms.py</code></td><td>约 200 行</td><td>服务端表单校验（旧版 SSR 页面使用）</td></tr>
+    <tr><td><code>frontend/assets/js/api.js</code></td><td>80 行</td><td>统一请求出口：自动带 CSRF 头、401 跳登录、错误消息提取、查询参数拼装</td></tr>
+    <tr><td><code>frontend/assets/js/layout.js</code></td><td>约 260 行</td><td>侧边栏渲染、按权限显隐菜单、当前用户信息、退出登录</td></tr>
+    <tr><td><code>frontend/assets/js/ui.js</code></td><td>约 240 行</td><td>表格渲染、分页、Toast 提示、确认框、按钮 loading 状态</td></tr>
+    <tr><td><code>frontend/assets/css/app.css</code></td><td>约 119 行</td><td>主题变量、卡片、表格、表单、响应式布局</td></tr>
+    <tr><td><code>clinic/management/commands/init_demo_data.py</code></td><td>107 行</td><td>演示账号与基础业务数据初始化，可重复执行</td></tr>
+  </tbody>
+</table>
+
+<h2>三、数据模型（8 张表）</h2>
+<table>
+  <thead><tr><th style="width:170px">模型 / 表名</th><th style="width:60px">字段数</th><th>关键字段</th><th style="width:230px">关系与约束</th></tr></thead>
+  <tbody>
+    <tr><td><code>User</code><br><span class="tag gray">clinic_user</span></td><td>10+</td><td>username、password（哈希）、first_name（姓名）、role（ADMIN/DOCTOR/PATIENT）、phone、gender、birth_date、address</td><td>继承 <code>AbstractUser</code>；<code>AUTH_USER_MODEL</code> 全局替换</td></tr>
+    <tr><td><code>RolePermission</code><br><span class="tag gray">clinic_rolepermission</span></td><td>6</td><td>role（主键）、can_user、can_schedule、can_appointment、can_visit、can_statistics</td><td>以角色为粒度的五个功能开关，管理员默认全开</td></tr>
+    <tr><td><code>Doctor</code><br><span class="tag gray">clinic_doctor</span></td><td>8</td><td>employee_no（工号）、department、title、specialty、introduction、is_active</td><td>一对一关联 User；工号唯一</td></tr>
+    <tr><td><code>Schedule</code><br><span class="tag gray">clinic_schedule</span></td><td>9</td><td>date、start_time、end_time、room、total_slots、status（OPEN/STOPPED）</td><td>外键 Doctor；<code>unique(doctor, date, start_time)</code> 防重复排班</td></tr>
+    <tr><td><code>Appointment</code><br><span class="tag gray">clinic_appointment</span></td><td>8</td><td>appointment_no（自动生成）、symptoms、status（BOOKED/COMPLETED/CANCELLED）</td><td>外键 Patient + Schedule；<code>on_delete=PROTECT</code> 防误删</td></tr>
+    <tr><td><code>Visit</code><br><span class="tag gray">clinic_visit</span></td><td>11</td><td>visit_time、diagnosis（中医诊断）、treatment（治法）、prescription（处方）、attachment、status</td><td>一对一关联 Appointment，一次预约只能登记一次就诊</td></tr>
+    <tr><td><code>VisitHistory</code><br><span class="tag gray">clinic_visithistory</span></td><td>5</td><td>action、note、operator、created_at</td><td>外键 Visit，改诊留痕（谁在何时改了什么）</td></tr>
+    <tr><td><code>OperationLog</code><br><span class="tag gray">clinic_operationlog</span></td><td>6</td><td>module、action、object_id、detail、ip_address、created_at</td><td>外键操作人，全局操作审计</td></tr>
+  </tbody>
+</table>
+
+<h2>四、角色与权限 <em>菜单权限 + 数据范围权限双层控制</em></h2>
+<table>
+  <thead><tr><th style="width:100px">角色</th><th>可访问功能</th><th style="width:250px">数据范围（QuerySet 过滤）</th><th style="width:180px">实现位置</th></tr></thead>
+  <tbody>
+    <tr><td><span class="tag">ADMIN 管理员</span></td><td>全部 6 个模块：用户权限、医师、排班、预约、就诊、统计日志</td><td>全量数据，不受限制</td><td><code>api_perm()</code> 中 <code>role == ADMIN</code> 直接放行</td></tr>
+    <tr><td><span class="tag">DOCTOR 医师</span></td><td>排班、预约、就诊、统计（可关）；用户管理与权限配置不可见</td><td>只看自己的排班与预约：<code>schedule__doctor__user=user</code></td><td><code>appointment_scope()</code>、<code>own_doctor()</code></td></tr>
+    <tr><td><span class="tag">PATIENT 患者</span></td><td>预约挂号、我的预约、就诊记录、个人资料</td><td>只看自己的数据：<code>patient=user</code></td><td><code>appointment_scope()</code>、<code>visit_scope()</code></td></tr>
+  </tbody>
+</table>
+<div class="note">权限判定链路：<code>@api_login_required</code> 判登录 → <code>@api_perm("can_xxx")</code> 查 <code>RolePermission</code> 判功能开关 → 视图内 <code>appointment_scope()</code> 判数据可见范围。越权时抛 <code>PermissionDenied</code>，前端统一提示并跳转。</div>
+
+<h2>五、后端接口清单（22 个）</h2>
+<table>
+  <thead><tr><th style="width:60px">方法</th><th style="width:250px">路径</th><th style="width:170px">视图函数</th><th style="width:150px">权限</th><th>功能</th></tr></thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/api/auth/me/</code></td><td>auth_me</td><td>公开（下发 CSRF）</td><td>返回当前登录态与权限开关；<code>@ensure_csrf_cookie</code> 负责种下 csrftoken</td></tr>
+    <tr><td>POST</td><td><code>/api/auth/login/</code></td><td>auth_login</td><td>公开</td><td>账号密码校验，<code>authenticate()</code> + <code>login()</code> 建立会话，写操作日志</td></tr>
+    <tr><td>POST</td><td><code>/api/auth/logout/</code></td><td>auth_logout</td><td>登录</td><td>销毁会话</td></tr>
+    <tr><td>POST</td><td><code>/api/auth/register/</code></td><td>auth_register</td><td>公开</td><td>患者自助注册，密码强度走 <code>AUTH_PASSWORD_VALIDATORS</code></td></tr>
+    <tr><td>GET/POST</td><td><code>/api/auth/profile/</code></td><td>auth_profile</td><td>登录</td><td>个人资料查看与修改</td></tr>
+    <tr><td>GET</td><td><code>/api/dashboard/</code></td><td>dashboard</td><td>登录</td><td>今日预约、待接诊、今日排班、出诊医师四张统计卡 + 近期排班/预约</td></tr>
+    <tr><td>GET</td><td><code>/api/users/</code></td><td>user_list</td><td>can_user</td><td>用户分页列表，支持关键字、角色筛选</td></tr>
+    <tr><td>GET/PUT</td><td><code>/api/users/&lt;pk&gt;/</code></td><td>user_detail</td><td>can_user</td><td>用户详情、修改角色/状态/资料</td></tr>
+    <tr><td>GET/POST</td><td><code>/api/permissions/</code></td><td>permissions</td><td>can_user</td><td>读取与保存三个角色的五项功能开关</td></tr>
+    <tr><td>GET</td><td><code>/api/doctors/</code></td><td>doctor_list</td><td>登录</td><td>在职医师列表，供排班/预约下拉选择</td></tr>
+    <tr><td>GET/POST</td><td><code>/api/schedules/</code></td><td>schedule_list</td><td>can_schedule</td><td>排班列表（按日期/医师过滤）与新增排班，含时间合法性校验</td></tr>
+    <tr><td>GET/PUT/DELETE</td><td><code>/api/schedules/&lt;pk&gt;/</code></td><td>schedule_detail</td><td>can_schedule</td><td>排班详情、调整号源/诊室/状态、删除（有预约时禁止）</td></tr>
+    <tr><td>GET/POST</td><td><code>/api/appointments/</code></td><td>appointment_list</td><td>can_appointment</td><td>预约列表（按角色收窄范围）与新建预约，校验余号、重复预约</td></tr>
+    <tr><td>GET</td><td><code>/api/appointments/options/</code></td><td>appointment_options</td><td>can_appointment</td><td>挂号页下拉数据：患者、医师、可约排班及余号</td></tr>
+    <tr><td>GET/PUT</td><td><code>/api/appointments/&lt;pk&gt;/</code></td><td>appointment_detail</td><td>can_appointment</td><td>预约详情、修改症状/状态（完成就诊）</td></tr>
+    <tr><td>POST</td><td><code>/api/appointments/&lt;pk&gt;/cancel/</code></td><td>appointment_cancel</td><td>can_appointment</td><td>取消预约，归还号源，写入日志</td></tr>
+    <tr><td>GET/POST</td><td><code>/api/visits/</code></td><td>visit_list</td><td>can_visit</td><td>就诊记录列表与登记（诊断/治法/处方/附件）</td></tr>
+    <tr><td>GET</td><td><code>/api/visits/options/</code></td><td>visit_options</td><td>can_visit</td><td>待接诊预约下拉</td></tr>
+    <tr><td>GET/POST</td><td><code>/api/visits/&lt;pk&gt;/</code></td><td>visit_detail</td><td>can_visit</td><td>就诊详情、修改诊断内容，改动写入 VisitHistory 留痕</td></tr>
+    <tr><td>GET</td><td><code>/api/statistics/</code></td><td>statistics</td><td>can_statistics</td><td>pandas 汇总：总量/完成率/取消率 + 趋势、状态、科室三组图表数据</td></tr>
+    <tr><td>GET</td><td><code>/api/statistics/export/</code></td><td>export_appointments</td><td>can_statistics</td><td>按当前筛选条件导出 CSV（UTF-8 BOM，Excel 直接打开不乱码）</td></tr>
+    <tr><td>GET</td><td><code>/api/logs/</code></td><td>operation_logs</td><td>can_statistics</td><td>操作日志分页查询，支持模块/操作人过滤</td></tr>
+  </tbody>
+</table>
+<div class="note">统一响应结构：成功 <code>{"ok": true, "data": ...}</code>；失败 <code>{"ok": false, "code": "FORBIDDEN", "message": "..."}</code>。列表接口统一支持 <code>page</code>、<code>page_size</code>、<code>keyword</code> 参数。</div>
+
+<h2>六、前端页面清单（17 个）</h2>
+<table>
+  <thead><tr><th style="width:250px">页面</th><th>功能</th><th style="width:280px">依赖脚本</th></tr></thead>
+  <tbody>
+    <tr><td><code>login.html</code></td><td>账号密码登录、演示账号一键填充、已登录自动跳转</td><td>api.js / ui.js</td></tr>
+    <tr><td><code>register.html</code></td><td>患者自助注册，前端即时校验</td><td>api.js / ui.js</td></tr>
+    <tr><td><code>index.html</code></td><td>工作台：4 张统计卡 + 近期排班 + 最近预约</td><td>layout.js / api.js / ui.js</td></tr>
+    <tr><td><code>schedules.html</code> / <code>schedule-form.html</code> / <code>schedule-detail.html</code></td><td>排班列表、新增/编辑排班、排班详情与号源占用</td><td>同上</td></tr>
+    <tr><td><code>appointments.html</code> / <code>appointment-form.html</code> / <code>appointment-detail.html</code></td><td>预约列表与筛选、新建预约（联动余号）、预约详情与取消</td><td>同上</td></tr>
+    <tr><td><code>visits.html</code> / <code>visit-form.html</code> / <code>visit-detail.html</code></td><td>就诊记录、中医诊断与处方登记、改诊留痕</td><td>同上</td></tr>
+    <tr><td><code>statistics.html</code></td><td>条件筛选 + 三张 ECharts 图（趋势折线、状态饼图、科室柱状）+ CSV 导出</td><td>echarts.min.js / api.js</td></tr>
+    <tr><td><code>users.html</code></td><td>用户列表、角色筛选、启用停用、修改资料</td><td>layout.js / api.js / ui.js</td></tr>
+    <tr><td><code>permissions.html</code></td><td>角色 × 功能开关矩阵，保存即生效</td><td>同上</td></tr>
+    <tr><td><code>logs.html</code></td><td>操作日志查询与分页</td><td>同上</td></tr>
+    <tr><td><code>profile.html</code></td><td>个人资料查看与修改</td><td>同上</td></tr>
+  </tbody>
+</table>
+
+<h2>七、核心功能实现要点</h2>
+<table>
+  <thead><tr><th style="width:150px">功能点</th><th>实现方式</th><th style="width:210px">关键代码</th></tr></thead>
+  <tbody>
+    <tr><td>登录认证</td><td>Django Session 认证；登录页加载时先请求 <code>/api/auth/me/</code>，由 <code>@ensure_csrf_cookie</code> 下发 csrftoken，之后所有 POST 请求自动带 <code>X-CSRFToken</code> 头</td><td><code>auth_me</code> / <code>api.js:32</code></td></tr>
+    <tr><td>角色权限</td><td>权限不写死在代码里，而是存在 <code>RolePermission</code> 表中，管理员在页面上勾选即可生效；装饰器每次请求实时查询</td><td><code>api_perm(field)</code></td></tr>
+    <tr><td>数据范围隔离</td><td>按角色拼接 QuerySet：医师→<code>schedule__doctor__user</code>，患者→<code>patient=user</code>，管理员不过滤。同一接口三类角色看到不同数据</td><td><code>appointment_scope()</code></td></tr>
+    <tr><td>号源控制</td><td><code>booked_slots</code> 实时统计非取消预约数，<code>remaining_slots</code> 计算余号；保存前 <code>clean()</code> 再校验一次，防并发超卖</td><td><code>models.py:101-108</code></td></tr>
+    <tr><td>预约状态机</td><td>BOOKED →（就诊登记）COMPLETED /（取消）CANCELLED；取消即释放号源，状态变更全部落操作日志</td><td><code>appointment_cancel</code></td></tr>
+    <tr><td>改诊留痕</td><td>修改就诊记录前后对比，写入 <code>VisitHistory</code>（操作人、动作、说明、时间），满足医疗数据可追溯要求</td><td><code>visit_detail</code></td></tr>
+    <tr><td>操作审计</td><td>登录、增删改、导出等关键动作统一调用 <code>log_action()</code>，记录模块/动作/对象/IP</td><td><code>clinic/audit.py</code></td></tr>
+    <tr><td>pandas 统计</td><td>ORM 结果转 DataFrame → 去重（按预约编号）→ 缺失值填充「未填写」→ 日期 <code>to_datetime</code> 容错转换 → <code>groupby</code> 三维汇总</td><td><code>clinic/statistics.py</code></td></tr>
+    <tr><td>图表渲染</td><td>后端只返回 labels/values 数组，前端 ECharts 渲染折线/饼图/柱状图，切换筛选条件重新拉取</td><td><code>statistics.html</code></td></tr>
+    <tr><td>CSV 导出</td><td><code>text/csv</code> 流式响应 + <code>\ufeff</code> BOM 头，中文 Excel 打开不乱码；导出动作记日志</td><td><code>export_appointments</code></td></tr>
+    <tr><td>前端请求封装</td><td><code>api.js</code> 统一处理：查询参数拼装、CSRF 头、401 自动跳登录并记住来源页、错误消息提取</td><td><code>frontend/assets/js/api.js</code></td></tr>
+  </tbody>
+</table>
+
+<h2>八、部署实现（本机版 vs 线上版）</h2>
+<table>
+  <thead><tr><th style="width:170px">对比项</th><th style="width:330px">本机版（D:\中医门诊预约和医生排班管理系统）</th><th>线上版（_线上版 目录）</th></tr></thead>
+  <tbody>
+    <tr><td>数据库</td><td>MySQL 8，库名 <code>tcm_clinic_v2</code>，端口 3306</td><td>SQLite，随代码打包 <code>db.sqlite3</code></td></tr>
+    <tr><td>驱动</td><td><code>config/__init__.py</code> 中 <code>pymysql.install_as_MySQLdb()</code></td><td>清空该文件，不依赖外部驱动</td></tr>
+    <tr><td>DEBUG</td><td>默认开启</td><td>默认关闭，静态资源用 <code>--insecure</code> 托管</td></tr>
+    <tr><td>CSRF</td><td>信任 <code>*.trycloudflare.com</code> 等隧道域名</td><td>增加 <code>https://*.workbuddy.host</code>，配合 <code>SECURE_PROXY_SSL_HEADER</code></td></tr>
+    <tr><td>启动方式</td><td><code>启动系统.bat</code>，127.0.0.1:8020</td><td><code>start.sh</code>：读 <code>$PORT</code>，绑 <code>0.0.0.0</code>，缺库时自动 migrate + 初始化演示数据</td></tr>
+    <tr><td>访问地址</td><td><code>http://127.0.0.1:8020</code>（或局域网 IP）</td><td>短链 <code>https://da.gd/CWpGtF</code> → 完整链接（含 sharecode 凭据）</td></tr>
+  </tbody>
+</table>
+<div class="note">发布流程：写代码 → 本地跑通 → 复制到线上目录 → 改数据库为 SQLite → 加 CSRF 信任域 → 平台发布（反向代理 HTTPS）→ 端到端验证登录与各接口 → 用短链服务把长地址压短。</div>
+
+<h2>九、演示数据与验证记录</h2>
+<table>
+  <thead><tr><th style="width:170px">数据表</th><th style="width:90px">记录数</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>用户 clinic_user</td><td>14</td><td>1 管理员 + 3 医师 + 10 患者</td></tr>
+    <tr><td>医师 clinic_doctor</td><td>3</td><td>中医内科、针灸科、治未病科</td></tr>
+    <tr><td>排班 clinic_schedule</td><td>44</td><td>覆盖过去 14 天至未来 7 天，周日停诊</td></tr>
+    <tr><td>预约 clinic_appointment</td><td>160</td><td>含已完成、已预约、已取消三种状态</td></tr>
+    <tr><td>就诊 clinic_visit</td><td>67</td><td>含中医诊断、治法、处方</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead><tr><th style="width:230px">验证项</th><th style="width:110px">结果</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>22 个接口连通性</td><td><span class="tag">全部 200</span></td><td>登录后逐一请求，无 4xx/5xx</td></tr>
+    <tr><td>完整登录链路</td><td><span class="tag">通过</span></td><td>CSRF 下发 → 登录 → 会话保持 → 权限返回 ADMIN</td></tr>
+    <tr><td>17 个前端页面</td><td><span class="tag">全部 200</span></td><td>含静态资源 CSS/JS/ECharts</td></tr>
+    <tr><td>浏览器控制台</td><td><span class="tag">0 报错</span></td><td>Playwright 无头浏览器实测</td></tr>
+    <tr><td>公网 HTTPS 访问</td><td><span class="tag">通过</span></td><td>短链跳转落地登录页，登录返回 200</td></tr>
+    <tr><td>三角色越权测试</td><td><span class="tag warn">已拦截</span></td><td>医师访问用户管理、患者访问统计均 403</td></tr>
+  </tbody>
+</table>
+
+<footer>中医门诊预约系统 · 实现明细表 · 生成于 2026-11-12</footer>
+</div>
+</body>
+</html>

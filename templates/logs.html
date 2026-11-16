@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}操作日志{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>操作日志</h1><p class="text-secondary mb-0">查询系统各模块的操作记录</p></div>
+    <button type="button" class="btn btn-outline-primary no-print" data-action="print"><i class="bi bi-printer me-1"></i>打印当前页</button>
+</div>
+
+<div class="card filter-card no-print">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-3"><label for="keyword" class="form-label">关键词</label><input type="text" class="form-control" id="keyword" name="keyword" value="{{ keyword }}" placeholder="操作人、操作内容或详情"></div>
+            <div class="col-md-6 col-xl-2">
+                <label for="module" class="form-label">功能模块</label>
+                <select class="form-select" id="module" name="module">
+                    <option value="">全部模块</option>
+                    {% for module_name in module_choices %}<option value="{{ module_name }}" {% if selected_module == module_name %}selected{% endif %}>{{ module_name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-2"><label for="start_date" class="form-label">开始日期</label><input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}"></div>
+            <div class="col-md-6 col-xl-2"><label for="end_date" class="form-label">结束日期</label><input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}"></div>
+            <div class="col-md-6 col-xl-3 filter-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>查询</button><a href="{% url 'operation_logs' %}" class="btn btn-outline-secondary">重置</a></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">日志列表</h2></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>操作时间</th><th>操作人</th><th>功能模块</th><th>操作内容</th><th>详情</th><th>IP 地址</th></tr></thead>
+                <tbody>
+                {% for log in logs %}
+                    <tr><td class="text-nowrap">{{ log.created_at|date:"Y-m-d H:i:s" }}</td><td>{% if log.operator %}{{ log.operator.first_name|default:log.operator.username }}{% else %}已删除用户{% endif %}</td><td>{{ log.get_module_display|default:log.module }}</td><td>{{ log.action }}</td><td class="detail-text log-detail">{{ log.object_id }} {{ log.detail }}</td><td>{{ log.ip_address|default:"-" }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="6" class="empty-state">暂无符合条件的操作日志</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'includes/pagination.html' with page_obj=logs %}
+    </div>
+</div>
+{% endblock %}

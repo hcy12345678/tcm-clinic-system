@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>就诊登记 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="visits">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1 id="page-title">新增就诊登记</h1>
+          <div class="sub">状态改为「已完成」时，对应预约会自动变为「已完成」</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-light" href="visits.html"><i class="bi bi-arrow-left"></i> 返回列表</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="visit-form" class="form-grid" novalidate>
+          <div class="field full">
+            <label for="appointment">对应预约</label>
+            <select id="appointment" name="appointment" required></select>
+            <span class="hint">仅列出「已预约」且尚未建立就诊记录的预约</span>
+          </div>
+          <div class="field">
+            <label for="visit_time">就诊时间</label>
+            <input type="datetime-local" id="visit_time" name="visit_time">
+          </div>
+          <div class="field">
+            <label for="status">就诊状态</label>
+            <select id="status" name="status"></select>
+          </div>
+          <div class="field full">
+            <label for="diagnosis">中医诊断</label>
+            <textarea id="diagnosis" name="diagnosis" placeholder="如：肝郁气滞，心脾两虚"></textarea>
+          </div>
+          <div class="field full">
+            <label for="treatment">治疗方案</label>
+            <textarea id="treatment" name="treatment" placeholder="如：疏肝解郁、养心安神；建议针灸辅以调理"></textarea>
+          </div>
+          <div class="field full">
+            <label for="prescription">处方建议</label>
+            <textarea id="prescription" name="prescription" placeholder="如：逍遥散合归脾汤加减，七剂，水煎服"></textarea>
+          </div>
+          <div class="field full">
+            <label for="note">异常备注</label>
+            <textarea id="note" name="note" placeholder="如：患者服药后出现轻微胃部不适，已调整用量"></textarea>
+          </div>
+          <div class="field">
+            <label for="attachment">附件</label>
+            <input type="file" id="attachment" name="attachment">
+          </div>
+          <div class="field">
+            <label for="history_note">本次操作说明</label>
+            <input type="text" id="history_note" name="history_note" placeholder="将写入就诊历史留痕">
+          </div>
+          <div class="full form-actions">
+            <button type="submit" class="btn btn-primary" id="save-btn"><i class="bi bi-save"></i> 保存登记</button>
+            <a class="btn btn-light" href="visits.html">取消</a>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('visits');
+      if (!me) return;
+
+      const id = UI.qs('id');
+      const form = document.getElementById('visit-form');
+      const saveBtn = document.getElementById('save-btn');
+      const appointmentSelect = document.getElementById('appointment');
+
+      try {
+        const options = await API.get('/visits/options/');
+        appointmentSelect.innerHTML = options.appointments.length
+          ? options.appointments.map((item) => `<option value="${item.value}">${UI.escapeHtml(item.label)}</option>`).join('')
+          : '<option value="">没有待接诊的预约</option>';
+        document.getElementById('status').innerHTML = options.statuses.map((item) =>
+          `<option value="${item.value}">${UI.escapeHtml(item.label)}</option>`).join('');
+      } catch (error) {
+        UI.toast(error.message, 'error');
+      }
+
+      if (id) {
+        document.getElementById('page-title').textContent = '编辑就诊记录';
+        try {
+          const visit = await API.get(`/visits/${id}/`);
+          const exists = Array.from(appointmentSelect.options).some((option) => option.value === String(visit.appointment_id));
+          if (!exists) {
+            const option = document.createElement('option');
+            option.value = String(visit.appointment_id);
+            option.textContent = visit.appointment_no;
+            appointmentSelect.appendChild(option);
+          }
+          appointmentSelect.value = String(visit.appointment_id);
+          appointmentSelect.disabled = true;
+          document.getElementById('visit_time').value = visit.visit_time.replace(' ', 'T');
+          document.getElementById('diagnosis').value = visit.diagnosis || '';
+          document.getElementById('treatment').value = visit.treatment || '';
+          document.getElementById('prescription').value = visit.prescription || '';
+          document.getElementById('note').value = visit.note || '';
+          document.getElementById('status').value = visit.status;
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(form);
+        if (appointmentSelect.disabled) formData.delete('appointment');
+        if (!appointmentSelect.disabled && !formData.get('appointment')) {
+          UI.toast('请选择对应的预约', 'error');
+          return;
+        }
+        UI.setLoading(saveBtn, true, '保存中…');
+        try {
+          const saved = id
+            ? await API.upload(`/visits/${id}/`, formData)
+            : await API.upload('/visits/', formData);
+          UI.toast(id ? '就诊记录已更新' : '就诊登记已创建');
+          setTimeout(() => { location.href = `visit-detail.html?id=${saved.id}`; }, 500);
+        } catch (error) {
+          UI.showFieldErrors(error);
+          UI.toast(error.message, 'error');
+          UI.setLoading(saveBtn, false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

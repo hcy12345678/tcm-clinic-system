@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色菜单权限 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="permissions">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>角色菜单权限</h1>
+          <div class="sub">勾选后立即生效：控制左侧菜单是否可见，以及接口是否允许访问</div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="save-btn"><i class="bi bi-save"></i> 保存配置</button>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        管理员始终拥有全部权限；医师与患者的可见模块由本页配置。取消勾选后，该角色即使手动输入接口地址也会被拒绝（403）。
+      </div>
+
+      <div class="card">
+        <div id="permission-table"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('permissions');
+      if (!me) return;
+
+      const MODULES = [
+        { key: 'can_user', label: '用户与权限管理' },
+        { key: 'can_schedule', label: '医师排班' },
+        { key: 'can_appointment', label: '预约挂号' },
+        { key: 'can_visit', label: '就诊登记' },
+        { key: 'can_statistics', label: '查询统计与日志' },
+      ];
+      let roles = [];
+
+      function render() {
+        const head = `<tr><th>角色</th>${MODULES.map((item) => `<th>${item.label}</th>`).join('')}</tr>`;
+        const body = roles.map((role, index) => {
+          const cells = MODULES.map((item) => `
+            <td style="text-align:center">
+              <input type="checkbox" data-role="${index}" data-key="${item.key}" ${role[item.key] ? 'checked' : ''} ${role.role === 'ADMIN' ? 'disabled' : ''}>
+            </td>`).join('');
+          return `<tr><td><strong>${UI.escapeHtml(role.role_display)}</strong></td>${cells}</tr>`;
+        }).join('');
+        document.getElementById('permission-table').innerHTML =
+          `<div class="table-wrap"><table class="data-table" style="min-width:560px"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+
+        UI.$$('#permission-table input[type="checkbox"]').forEach((box) => {
+          box.addEventListener('change', () => {
+            roles[Number(box.dataset.role)][box.dataset.key] = box.checked;
+          });
+        });
+      }
+
+      async function load() {
+        try {
+          const data = await API.get('/permissions/');
+          roles = data.roles;
+          render();
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      document.getElementById('save-btn').addEventListener('click', async () => {
+        const button = document.getElementById('save-btn');
+        UI.setLoading(button, true, '保存中…');
+        try {
+          await API.post('/permissions/', { roles });
+          UI.toast('权限配置已保存，重新登录后菜单同步生效');
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        } finally {
+          UI.setLoading(button, false);
+        }
+      });
+
+      load();
+    })();
+  </script>
+</body>
+</html>

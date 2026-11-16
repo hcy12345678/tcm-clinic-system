@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · 中医门诊预约与医师排班管理系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="logo"><i class="bi bi-heart-pulse"></i><span>中医门诊预约系统</span></div>
+    <p class="sub">医生排班 · 预约挂号 · 就诊登记 · 数据统计</p>
+
+    <div id="login-alert" class="alert alert-error" style="display:none"></div>
+
+    <form id="login-form" novalidate>
+      <div class="field">
+        <label for="username">登录账号</label>
+        <input type="text" id="username" name="username" autocomplete="username" placeholder="请输入账号" required>
+      </div>
+      <div class="field">
+        <label for="password">登录密码</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" placeholder="请输入密码" required>
+      </div>
+      <button type="submit" class="btn btn-primary" id="login-btn">
+        <i class="bi bi-box-arrow-in-right"></i> 登录系统
+      </button>
+    </form>
+
+    <div class="auth-foot">还没有账号？<a href="register.html">患者自助注册</a></div>
+
+    <div class="demo-accounts">
+      <div>演示账号（点击自动填充）</div>
+      <div>管理员：<b>gly123</b> / gly123 <span class="fill" data-user="gly123" data-pass="gly123">填入</span></div>
+      <div>医师：<b>ys1234</b> / ys1234 <span class="fill" data-user="ys1234" data-pass="ys1234">填入</span></div>
+      <div>患者：<b>hz1234</b> / hz1234 <span class="fill" data-user="hz1234" data-pass="hz1234">填入</span></div>
+    </div>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+    (function () {
+      const form = document.getElementById('login-form');
+      const alertBox = document.getElementById('login-alert');
+      const button = document.getElementById('login-btn');
+
+      function showError(message) {
+        alertBox.textContent = message;
+        alertBox.style.display = 'block';
+      }
+
+      // 取一次 CSRF token，同时判断是否已登录
+      API.get('/auth/me/').then((me) => {
+        if (me && me.authenticated) {
+          location.href = 'index.html';
+        }
+      }).catch(() => {});
+
+      document.querySelectorAll('.fill').forEach((node) => {
+        node.addEventListener('click', () => {
+          document.getElementById('username').value = node.dataset.user;
+          document.getElementById('password').value = node.dataset.pass;
+        });
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        alertBox.style.display = 'none';
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        if (!username || !password) {
+          showError('请输入账号和密码。');
+          return;
+        }
+        UI.setLoading(button, true, '登录中…');
+        try {
+          await API.post('/auth/login/', { username, password });
+          const target = sessionStorage.getItem('redirect_after_login');
+          sessionStorage.removeItem('redirect_after_login');
+          location.href = target || 'index.html';
+        } catch (error) {
+          showError(error.message || '登录失败');
+          UI.setLoading(button, false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

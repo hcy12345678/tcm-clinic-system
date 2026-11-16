@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>个人资料 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="profile">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>个人资料</h1>
+          <div class="sub">维护姓名、联系方式等基础信息</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>基本信息</h2>
+        <form id="profile-form" class="form-grid" novalidate>
+          <div class="field">
+            <label>登录账号</label>
+            <input type="text" id="username" disabled>
+          </div>
+          <div class="field">
+            <label>角色</label>
+            <input type="text" id="role" disabled>
+          </div>
+          <div class="field">
+            <label for="first_name">姓名</label>
+            <input type="text" id="first_name" name="first_name" required>
+          </div>
+          <div class="field">
+            <label for="phone">联系电话</label>
+            <input type="text" id="phone" name="phone">
+          </div>
+          <div class="field">
+            <label for="gender">性别</label>
+            <select id="gender" name="gender">
+              <option value="">未填写</option>
+              <option value="M">男</option>
+              <option value="F">女</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="birth_date">出生日期</label>
+            <input type="date" id="birth_date" name="birth_date">
+          </div>
+          <div class="field">
+            <label for="email">电子邮箱</label>
+            <input type="email" id="email" name="email">
+          </div>
+          <div class="field full">
+            <label for="address">联系地址</label>
+            <input type="text" id="address" name="address">
+          </div>
+          <div class="full form-actions">
+            <button type="submit" class="btn btn-primary" id="save-btn"><i class="bi bi-save"></i> 保存修改</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('profile');
+      if (!me) return;
+
+      const form = document.getElementById('profile-form');
+      const saveBtn = document.getElementById('save-btn');
+
+      function fill(user) {
+        document.getElementById('username').value = user.username;
+        document.getElementById('role').value = user.role_display;
+        ['first_name', 'phone', 'gender', 'birth_date', 'email', 'address'].forEach((key) => {
+          document.getElementById(key).value = user[key] || '';
+        });
+      }
+
+      try {
+        fill(await API.get('/auth/profile/'));
+      } catch (error) {
+        UI.toast(error.message, 'error');
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const data = UI.formToObject(form);
+        UI.setLoading(saveBtn, true, '保存中…');
+        try {
+          const user = await API.post('/auth/profile/', data);
+          fill(user);
+          UI.toast('资料已更新');
+        } catch (error) {
+          UI.showFieldErrors(error);
+          UI.toast(error.message, 'error');
+        } finally {
+          UI.setLoading(saveBtn, false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

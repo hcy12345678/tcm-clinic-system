@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}排班详情{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>排班详情</h1><p class="text-secondary mb-0">排班编号：#{{ schedule.id }}</p></div>
+    <div class="page-actions">
+        <a href="{% url 'schedule_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% if can_manage %}<a href="{% url 'schedule_edit' schedule.id %}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>编辑排班</a>{% endif %}
+    </div>
+</div>
+
+<div class="card detail-card">
+    <div class="card-header"><h2 class="card-title">出诊信息</h2><span class="badge status-badge status-{{ schedule.status|lower }}">{{ schedule.get_status_display|default:schedule.status }}</span></div>
+    <div class="card-body">
+        <dl class="row detail-list">
+            <dt class="col-sm-3 col-lg-2">出诊医师</dt><dd class="col-sm-9 col-lg-4">{{ schedule.doctor.user.first_name|default:schedule.doctor.user.username }}</dd>
+            <dt class="col-sm-3 col-lg-2">所属科室</dt><dd class="col-sm-9 col-lg-4">{{ schedule.doctor.department|default:"-" }}</dd>
+            <dt class="col-sm-3 col-lg-2">医师职称</dt><dd class="col-sm-9 col-lg-4">{{ schedule.doctor.title|default:"-" }}</dd>
+            <dt class="col-sm-3 col-lg-2">出诊日期</dt><dd class="col-sm-9 col-lg-4">{{ schedule.date|date:"Y年m月d日" }}</dd>
+            <dt class="col-sm-3 col-lg-2">开始时间</dt><dd class="col-sm-9 col-lg-4">{{ schedule.start_time|time:"H:i" }}</dd>
+            <dt class="col-sm-3 col-lg-2">结束时间</dt><dd class="col-sm-9 col-lg-4">{{ schedule.end_time|time:"H:i" }}</dd>
+            <dt class="col-sm-3 col-lg-2">总号源</dt><dd class="col-sm-9 col-lg-4">{{ schedule.total_slots }}</dd>
+            <dt class="col-sm-3 col-lg-2">已预约号源</dt><dd class="col-sm-9 col-lg-4">{{ schedule.booked_slots }}</dd>
+            <dt class="col-sm-3 col-lg-2">剩余号源</dt><dd class="col-sm-9 col-lg-4"><span class="remaining-slots">{{ schedule.remaining_slots }}</span></dd>
+            <dt class="col-sm-3 col-lg-2">创建时间</dt><dd class="col-sm-9 col-lg-4">{{ schedule.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt class="col-sm-3 col-lg-2">更新时间</dt><dd class="col-sm-9 col-lg-4">{{ schedule.updated_at|date:"Y-m-d H:i" }}</dd>
+        </dl>
+    </div>
+    {% if can_manage %}<div class="card-footer d-flex justify-content-between"><a href="{% url 'schedule_delete' schedule.id %}" class="btn btn-outline-danger">删除排班</a><a href="{% url 'schedule_edit' schedule.id %}" class="btn btn-primary">编辑排班</a></div>{% endif %}
+</div>
+{% endblock %}

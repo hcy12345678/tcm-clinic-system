@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>工作台 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="index">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>工作台</h1>
+          <div class="sub" id="welcome">正在加载…</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="appointments.html"><i class="bi bi-plus-lg"></i> 新建预约</a>
+          <a class="btn btn-light" href="visits.html"><i class="bi bi-journal-medical"></i> 就诊登记</a>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="stat-cards"></div>
+
+      <div class="card">
+        <h2>近期待出诊排班</h2>
+        <div id="upcoming"></div>
+      </div>
+
+      <div class="card">
+        <h2>最新预约记录</h2>
+        <div id="recent"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('index');
+      if (!me) return;
+
+      try {
+        const data = await API.get('/dashboard/');
+        document.getElementById('welcome').textContent =
+          `${me.user.display_name}，今天是 ${data.today}，以下是你权限范围内的数据概览。`;
+
+        document.getElementById('stat-cards').innerHTML = data.cards.map((card) => `
+          <div class="stat-card">
+            <div class="label">${UI.escapeHtml(card.label)}</div>
+            <div class="value">${card.value}<span class="unit">条</span></div>
+          </div>`).join('');
+
+        document.getElementById('upcoming').innerHTML = UI.table([
+          { title: '日期', render: (row) => UI.escapeHtml(row.date) },
+          { title: '时间', render: (row) => `${UI.escapeHtml(row.start_time)} - ${UI.escapeHtml(row.end_time)}` },
+          { title: '医师', render: (row) => UI.escapeHtml(row.doctor_name) },
+          { title: '科室', render: (row) => UI.escapeHtml(row.department) },
+          { title: '诊室', render: (row) => UI.escapeHtml(row.room) },
+          { title: '余号', render: (row) => `${row.remaining_slots} / ${row.total_slots}` },
+          { title: '状态', render: (row) => UI.badge(row.status, row.status_display) },
+        ], data.upcoming_schedules, { empty: '近期没有排班，请先到「医师排班」新增。' });
+
+        document.getElementById('recent').innerHTML = UI.table([
+          { title: '预约编号', render: (row) => UI.escapeHtml(row.appointment_no) },
+          { title: '患者', render: (row) => UI.escapeHtml(row.patient_name) },
+          { title: '医师', render: (row) => UI.escapeHtml(row.schedule.doctor_name) },
+          { title: '就诊日期', render: (row) => UI.escapeHtml(row.schedule.date) },
+          { title: '状态', render: (row) => UI.badge(row.status, row.status_display) },
+          { title: '预约时间', render: (row) => UI.escapeHtml(row.created_at) },
+        ], data.recent_appointments, { empty: '暂无预约记录。' });
+      } catch (error) {
+        UI.toast(error.message, 'error');
+      }
+    })();
+  </script>
+</body>
+</html>

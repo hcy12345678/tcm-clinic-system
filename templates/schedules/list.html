@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}医师排班{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>医师排班</h1><p class="text-secondary mb-0">管理医师出诊时间、号源和排班状态</p></div>
+    {% if can_manage %}<a href="{% url 'schedule_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>新增排班</a>{% endif %}
+</div>
+
+<div class="card filter-card">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-3">
+                <label for="keyword" class="form-label">关键词</label>
+                <input type="text" class="form-control" id="keyword" name="keyword" value="{{ keyword }}" placeholder="医师姓名或科室">
+            </div>
+            <div class="col-md-6 col-xl-2">
+                <label for="doctor" class="form-label">医师</label>
+                <select class="form-select" id="doctor" name="doctor">
+                    <option value="">全部医师</option>
+                    {% for doctor in doctors %}<option value="{{ doctor.id }}" {% if selected_doctor == doctor.id|stringformat:"s" %}selected{% endif %}>{{ doctor.user.first_name|default:doctor.user.username }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-2">
+                <label for="start_date" class="form-label">开始日期</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-6 col-xl-2">
+                <label for="end_date" class="form-label">结束日期</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-6 col-xl-2">
+                <label for="status" class="form-label">状态</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option value="OPEN" {% if selected_status == 'OPEN' %}selected{% endif %}>开放预约</option>
+                    <option value="STOPPED" {% if selected_status == 'STOPPED' %}selected{% endif %}>暂停预约</option>
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-1 filter-actions"><button type="submit" class="btn btn-primary">查询</button><a href="{% url 'schedule_list' %}" class="btn btn-link">重置</a></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">排班列表</h2></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>出诊日期</th><th>出诊时段</th><th>医师</th><th>科室</th><th>已约 / 总号源</th><th>剩余号源</th><th>状态</th><th class="text-end">操作</th></tr></thead>
+                <tbody>
+                {% for schedule in schedules %}
+                    <tr>
+                        <td>{{ schedule.date|date:"Y-m-d" }}</td>
+                        <td>{{ schedule.start_time|time:"H:i" }} - {{ schedule.end_time|time:"H:i" }}</td>
+                        <td class="fw-medium">{{ schedule.doctor.user.first_name|default:schedule.doctor.user.username }}</td>
+                        <td>{{ schedule.doctor.department|default:"-" }}</td>
+                        <td>{{ schedule.booked_slots|default:0 }} / {{ schedule.total_slots|default:0 }}</td>
+                        <td><span class="remaining-slots">{{ schedule.remaining_slots }}</span></td>
+                        <td><span class="badge status-badge status-{{ schedule.status|lower }}">{{ schedule.get_status_display|default:schedule.status }}</span></td>
+                        <td>
+                            <div class="table-actions justify-content-end">
+                                <a href="{% url 'schedule_detail' schedule.id %}" class="btn btn-sm btn-outline-secondary">详情</a>
+                                {% if can_manage %}
+                                <a href="{% url 'schedule_edit' schedule.id %}" class="btn btn-sm btn-outline-primary">编辑</a>
+                                <a href="{% url 'schedule_delete' schedule.id %}" class="btn btn-sm btn-outline-danger">删除</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="empty-state">暂无符合条件的排班记录</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'includes/pagination.html' with page_obj=schedules %}
+    </div>
+</div>
+{% endblock %}

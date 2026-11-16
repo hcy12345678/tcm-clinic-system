@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>用户管理 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="users">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>用户管理</h1>
+          <div class="sub">查看账号信息并维护角色与联系方式</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-light" href="permissions.html"><i class="bi bi-shield-lock"></i> 角色菜单权限</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <form class="filter-bar" id="filter-form">
+          <div class="field">
+            <label>关键词</label>
+            <input type="text" name="keyword" placeholder="账号 / 姓名 / 电话">
+          </div>
+          <div class="field">
+            <label>角色</label>
+            <select name="role">
+              <option value="">全部角色</option>
+              <option value="ADMIN">管理员</option>
+              <option value="DOCTOR">医师</option>
+              <option value="PATIENT">患者</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> 查询</button>
+          <button type="reset" class="btn btn-light">重置</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div id="user-table"></div>
+        <div class="pagination" id="user-pagination"></div>
+      </div>
+
+      <div class="card" id="edit-card" style="display:none">
+        <h2 id="edit-title">编辑用户</h2>
+        <form id="edit-form" class="form-grid" novalidate>
+          <div class="field">
+            <label>登录账号</label>
+            <input type="text" id="edit-username" disabled>
+          </div>
+          <div class="field">
+            <label for="edit-first_name">姓名</label>
+            <input type="text" id="edit-first_name" name="first_name">
+          </div>
+          <div class="field">
+            <label for="edit-phone">联系电话</label>
+            <input type="text" id="edit-phone" name="phone">
+          </div>
+          <div class="field">
+            <label for="edit-gender">性别</label>
+            <select id="edit-gender" name="gender">
+              <option value="">未填写</option>
+              <option value="M">男</option>
+              <option value="F">女</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="edit-birth_date">出生日期</label>
+            <input type="date" id="edit-birth_date" name="birth_date">
+          </div>
+          <div class="field">
+            <label for="edit-email">电子邮箱</label>
+            <input type="email" id="edit-email" name="email">
+          </div>
+          <div class="field">
+            <label for="edit-role">角色</label>
+            <select id="edit-role" name="role">
+              <option value="ADMIN">管理员</option>
+              <option value="DOCTOR">医师</option>
+              <option value="PATIENT">患者</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="edit-is_active">账号状态</label>
+            <select id="edit-is_active" name="is_active">
+              <option value="true">启用</option>
+              <option value="false">停用</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="edit-address">联系地址</label>
+            <input type="text" id="edit-address" name="address">
+          </div>
+          <div class="full form-actions">
+            <button type="submit" class="btn btn-primary" id="edit-save"><i class="bi bi-save"></i> 保存</button>
+            <button type="button" class="btn btn-light" id="edit-cancel">取消</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('users');
+      if (!me) return;
+
+      const state = { page: 1, params: {}, current: null };
+      const filterForm = document.getElementById('filter-form');
+      const editCard = document.getElementById('edit-card');
+      const editForm = document.getElementById('edit-form');
+
+      function columns() {
+        return [
+          { title: '账号', render: (row) => UI.escapeHtml(row.username) },
+          { title: '姓名', render: (row) => UI.escapeHtml(row.display_name) },
+          { title: '角色', render: (row) => UI.badge(row.role === 'ADMIN' ? 'COMPLETED' : row.role === 'DOCTOR' ? 'BOOKED' : 'STOPPED', row.role_display) },
+          { title: '联系电话', render: (row) => UI.escapeHtml(row.phone || '-') },
+          { title: '状态', render: (row) => row.is_active ? '<span class="pill pill-success">启用</span>' : '<span class="pill pill-secondary">停用</span>' },
+          { title: '注册时间', render: (row) => UI.escapeHtml(row.date_joined) },
+          { title: '操作', render: (row) => `<button class="link-btn" data-edit="${row.id}">编辑</button>` },
+        ];
+      }
+
+      async function load(page) {
+        state.page = page || 1;
+        try {
+          const data = await API.get('/users/', Object.assign({ page: state.page }, state.params));
+          document.getElementById('user-table').innerHTML = UI.table(columns(), data.results, { empty: '没有符合条件的用户。' });
+          UI.pagination(document.getElementById('user-pagination'), data, load);
+          UI.$$('[data-edit]').forEach((button) => {
+            button.addEventListener('click', () => openEdit(button.dataset.edit));
+          });
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      async function openEdit(id) {
+        try {
+          const user = await API.get(`/users/${id}/`);
+          state.current = user;
+          document.getElementById('edit-title').textContent = `编辑用户 · ${user.username}`;
+          document.getElementById('edit-username').value = user.username;
+          ['first_name', 'phone', 'gender', 'birth_date', 'email', 'address'].forEach((key) => {
+            document.getElementById(`edit-${key}`).value = user[key] || '';
+          });
+          document.getElementById('edit-role').value = user.role;
+          document.getElementById('edit-is_active').value = user.is_active ? 'true' : 'false';
+          editCard.style.display = 'block';
+          editCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      filterForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.params = UI.formToObject(filterForm);
+        load(1);
+      });
+
+      filterForm.addEventListener('reset', () => {
+        state.params = {};
+        setTimeout(() => load(1), 0);
+      });
+
+      document.getElementById('edit-cancel').addEventListener('click', () => {
+        editCard.style.display = 'none';
+        state.current = null;
+      });
+
+      editForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!state.current) return;
+        const data = UI.formToObject(editForm);
+        data.is_active = data.is_active === 'true';
+        const button = document.getElementById('edit-save');
+        UI.setLoading(button, true, '保存中…');
+        try {
+          await API.put(`/users/${state.current.id}/`, data);
+          UI.toast('用户信息已更新');
+          editCard.style.display = 'none';
+          load(state.page);
+        } catch (error) {
+          UI.showFieldErrors(error);
+          UI.toast(error.message, 'error');
+        } finally {
+          UI.setLoading(button, false);
+        }
+      });
+
+      load(1);
+    })();
+  </script>
+</body>
+</html>

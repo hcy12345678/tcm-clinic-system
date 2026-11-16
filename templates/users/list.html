@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}用户管理{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>用户管理</h1><p class="text-secondary mb-0">查询和维护门诊系统用户资料</p></div>
+</div>
+
+<div class="card filter-card">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-5">
+                <label for="keyword" class="form-label">关键词</label>
+                <input type="text" class="form-control" id="keyword" name="keyword" value="{{ keyword }}" placeholder="用户名、姓名或邮箱">
+            </div>
+            <div class="col-md-4 col-xl-3">
+                <label for="role" class="form-label">用户角色</label>
+                <select class="form-select" id="role" name="role">
+                    <option value="">全部角色</option>
+                    {% for value,label in roles %}
+                    <option value="{{ value }}" {% if selected_role == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-12 col-xl-4 filter-actions">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>查询</button>
+                <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">用户列表</h2></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>用户名</th><th>姓名</th><th>邮箱</th><th>角色</th><th>账号状态</th><th>注册时间</th><th class="text-end">操作</th></tr></thead>
+                <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td class="fw-medium">{{ user.username }}</td>
+                        <td>{{ user.first_name|default:"-" }}</td>
+                        <td>{{ user.email|default:"-" }}</td>
+                        <td><span class="role-text">{{ user.get_role_display|default:user.role }}</span><small class="text-secondary ms-1">{{ user.role }}</small></td>
+                        <td>{% if user.is_active %}<span class="badge text-bg-success">正常</span>{% else %}<span class="badge text-bg-secondary">停用</span>{% endif %}</td>
+                        <td>{{ user.date_joined|date:"Y-m-d H:i" }}</td>
+                        <td class="text-end"><a href="{% url 'user_edit' user.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>编辑</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-state">未找到符合条件的用户</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'includes/pagination.html' with page_obj=users %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}预约详情{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>预约详情</h1><p class="text-secondary mb-0">预约编号：{{ appointment.appointment_no }}</p></div>
+    <div class="page-actions">
+        <a href="{% url 'appointment_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% if can_edit %}<a href="{% url 'appointment_edit' appointment.id %}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>编辑预约</a>{% endif %}
+    </div>
+</div>
+
+<div class="card detail-card mb-3">
+    <div class="card-header"><h2 class="card-title">预约状态</h2><span class="badge status-badge status-{{ appointment.status|lower }}">{{ appointment.get_status_display|default:appointment.status }}</span></div>
+    <div class="card-body">
+        <dl class="row detail-list mb-0">
+            <dt class="col-sm-3 col-lg-2">预约编号</dt><dd class="col-sm-9 col-lg-4 fw-medium">{{ appointment.appointment_no }}</dd>
+            <dt class="col-sm-3 col-lg-2">当前状态</dt><dd class="col-sm-9 col-lg-4">{{ appointment.get_status_display|default:appointment.status }}</dd>
+            <dt class="col-sm-3 col-lg-2">创建时间</dt><dd class="col-sm-9 col-lg-4">{{ appointment.created_at|date:"Y-m-d H:i:s" }}</dd>
+            <dt class="col-sm-3 col-lg-2">更新时间</dt><dd class="col-sm-9 col-lg-4">{{ appointment.updated_at|date:"Y-m-d H:i" }}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card detail-card h-100">
+            <div class="card-header"><h2 class="card-title">患者信息</h2></div>
+            <div class="card-body">
+                <dl class="row detail-list mb-0">
+                    <dt class="col-sm-4">患者姓名</dt><dd class="col-sm-8">{{ appointment.patient.first_name|default:appointment.patient.username }}</dd>
+                    <dt class="col-sm-4">登录账号</dt><dd class="col-sm-8">{{ appointment.patient.username }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card detail-card h-100">
+            <div class="card-header"><h2 class="card-title">排班信息</h2></div>
+            <div class="card-body">
+                <dl class="row detail-list mb-0">
+                    <dt class="col-sm-4">出诊医师</dt><dd class="col-sm-8">{{ appointment.schedule.doctor.user.first_name|default:appointment.schedule.doctor.user.username }}</dd>
+                    <dt class="col-sm-4">所属科室</dt><dd class="col-sm-8">{{ appointment.schedule.doctor.department|default:"-" }}</dd>
+                    <dt class="col-sm-4">就诊日期</dt><dd class="col-sm-8">{{ appointment.schedule.date|date:"Y-m-d" }}</dd>
+                    <dt class="col-sm-4">就诊时段</dt><dd class="col-sm-8">{{ appointment.schedule.start_time|time:"H:i" }} - {{ appointment.schedule.end_time|time:"H:i" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card detail-card mt-3">
+    <div class="card-header"><h2 class="card-title">症状描述</h2></div>
+    <div class="card-body detail-text">{{ appointment.symptoms|default:"未填写症状描述"|linebreaksbr }}</div>
+</div>
+{% endblock %}

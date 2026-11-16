@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}角色菜单权限{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>角色菜单权限</h1><p class="text-secondary mb-0">勾选各角色可使用的功能模块，保存后生效</p></div>
+</div>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="card-header"><h2 class="card-title">权限配置</h2><button type="submit" class="btn btn-primary"><i class="bi bi-check2 me-1"></i>保存权限</button></div>
+        <div class="card-body p-0">
+            <div class="alert alert-info rounded-0 border-start-0 border-end-0 mb-0">权限变更可能影响当前在线用户，请谨慎操作。</div>
+            <div class="table-responsive">
+                <table class="table permission-table mb-0">
+                    <thead><tr><th>角色</th><th>用户与权限</th><th>医师排班</th><th>预约挂号</th><th>就诊登记</th><th>查询统计与日志</th></tr></thead>
+                    <tbody>
+                    {% for permission in permissions %}
+                        <tr>
+                            <td>
+                                <input type="hidden" name="roles" value="{{ permission.role }}">
+                                <strong>{{ permission.get_role_display|default:permission.role }}</strong>
+                                <div class="small text-secondary">{{ permission.role }}</div>
+                            </td>
+                            <td><div class="form-check d-inline-flex"><input class="form-check-input" type="checkbox" id="{{ permission.role }}-can-user" name="{{ permission.role }}_can_user" value="1" {% if permission.can_user %}checked{% endif %}><label class="form-check-label visually-hidden" for="{{ permission.role }}-can-user">用户与权限</label></div></td>
+                            <td><div class="form-check d-inline-flex"><input class="form-check-input" type="checkbox" id="{{ permission.role }}-can-schedule" name="{{ permission.role }}_can_schedule" value="1" {% if permission.can_schedule %}checked{% endif %}><label class="form-check-label visually-hidden" for="{{ permission.role }}-can-schedule">医师排班</label></div></td>
+                            <td><div class="form-check d-inline-flex"><input class="form-check-input" type="checkbox" id="{{ permission.role }}-can-appointment" name="{{ permission.role }}_can_appointment" value="1" {% if permission.can_appointment %}checked{% endif %}><label class="form-check-label visually-hidden" for="{{ permission.role }}-can-appointment">预约挂号</label></div></td>
+                            <td><div class="form-check d-inline-flex"><input class="form-check-input" type="checkbox" id="{{ permission.role }}-can-visit" name="{{ permission.role }}_can_visit" value="1" {% if permission.can_visit %}checked{% endif %}><label class="form-check-label visually-hidden" for="{{ permission.role }}-can-visit">就诊登记</label></div></td>
+                            <td><div class="form-check d-inline-flex"><input class="form-check-input" type="checkbox" id="{{ permission.role }}-can-statistics" name="{{ permission.role }}_can_statistics" value="1" {% if permission.can_statistics %}checked{% endif %}><label class="form-check-label visually-hidden" for="{{ permission.role }}-can-statistics">查询统计与日志</label></div></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6" class="empty-state">暂无角色权限配置</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer text-end"><button type="submit" class="btn btn-primary">保存权限</button></div>
+    </form>
+</div>
+{% endblock %}

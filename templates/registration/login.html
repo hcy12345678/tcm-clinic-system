@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}用户登录{% endblock %}
+
+{% block auth_content %}
+<div class="card auth-card">
+    <div class="card-body">
+        <div class="auth-heading">
+            <span class="auth-icon"><i class="bi bi-person-circle"></i></span>
+            <h1>用户登录</h1>
+            <p>请输入账号和密码进入门诊管理系统</p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            {% for hidden_field in form.hidden_fields %}{{ hidden_field }}{% endfor %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            {% for field in form.visible_fields %}
+            <div class="mb-3">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="field-errors">{{ field.errors }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary w-100">登 录</button>
+        </form>
+        <div class="demo-accounts">
+            <strong>示例账号</strong>
+            <div>管理员：gly123 / gly123</div>
+            <div>医师：ys1234 / ys1234</div>
+            <div>患者：hz1234 / hz1234</div>
+        </div>
+        <p class="text-center mb-0">还没有账号？<a href="{% url 'register' %}">立即注册</a></p>
+    </div>
+</div>
+{% endblock %}

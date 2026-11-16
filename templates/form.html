@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title|default:"信息维护" }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>{{ title|default:"信息维护" }}</h1></div>
+</div>
+<div class="card form-card">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+            {% for hidden_field in form.hidden_fields %}
+                {{ hidden_field }}
+                {% if hidden_field.errors %}<div class="text-danger small mb-3">{{ hidden_field.errors }}</div>{% endif %}
+            {% endfor %}
+            <div class="row g-3">
+                {% for field in form.visible_fields %}
+                <div class="col-12 {% if field.name != 'symptoms' and field.name != 'diagnosis' and field.name != 'treatment' and field.name != 'prescription' and field.name != 'note' and field.name != 'notes' %}col-md-6{% endif %}">
+                    <label class="form-label" for="{{ field.id_for_label }}">
+                        {{ field.label }}{% if field.field.required %}<span class="required-mark" aria-hidden="true">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% if field.errors %}<div class="field-errors">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check2 me-1"></i>{{ submit_label|default:"保存" }}</button>
+                <button type="button" class="btn btn-outline-secondary" data-action="back" data-fallback="{% url 'dashboard' %}">返回上一页</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

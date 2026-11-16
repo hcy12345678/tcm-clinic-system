@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>就诊详情 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="visits">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>就诊详情</h1>
+          <div class="sub" id="page-sub">正在加载…</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-light" href="visits.html"><i class="bi bi-arrow-left"></i> 返回列表</a>
+          <a class="btn btn-primary" id="edit-link" href="#"><i class="bi bi-pencil"></i> 编辑记录</a>
+        </div>
+      </div>
+
+      <div class="card"><h2>基本信息</h2><div class="detail-grid" id="detail"></div></div>
+
+      <div class="card">
+        <h2>诊疗内容</h2>
+        <div class="detail-grid">
+          <div class="detail-item"><span class="k">中医诊断</span><span class="v" id="diagnosis">-</span></div>
+          <div class="detail-item"><span class="k">治疗方案</span><span class="v" id="treatment">-</span></div>
+          <div class="detail-item"><span class="k">处方建议</span><span class="v" id="prescription">-</span></div>
+          <div class="detail-item"><span class="k">异常备注</span><span class="v" id="note">-</span></div>
+          <div class="detail-item"><span class="k">附件</span><span class="v" id="attachment">-</span></div>
+        </div>
+      </div>
+
+      <div class="card"><h2>操作留痕</h2><ul class="timeline" id="histories"></ul></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('visits');
+      if (!me) return;
+
+      const id = UI.qs('id');
+      if (!id) { location.href = 'visits.html'; return; }
+      document.getElementById('edit-link').href = `visit-form.html?id=${id}`;
+      if (me.user.role === 'PATIENT') document.getElementById('edit-link').style.display = 'none';
+
+      function item(label, value) {
+        return `<div class="detail-item"><span class="k">${label}</span><span class="v">${value}</span></div>`;
+      }
+
+      try {
+        const visit = await API.get(`/visits/${id}/`);
+        document.getElementById('page-sub').textContent = `${visit.appointment_no} · ${visit.patient_name}`;
+        document.getElementById('detail').innerHTML = [
+          item('预约编号', `<a href="appointment-detail.html?id=${visit.appointment_id}">${UI.escapeHtml(visit.appointment_no)}</a>`),
+          item('患者', UI.escapeHtml(visit.patient_name)),
+          item('医师', UI.escapeHtml(visit.doctor_name)),
+          item('科室', UI.escapeHtml(visit.department)),
+          item('就诊日期', UI.escapeHtml(visit.schedule_date)),
+          item('就诊时间', UI.escapeHtml(visit.visit_time)),
+          item('就诊状态', UI.badge(visit.status, visit.status_display)),
+          item('经办人', UI.escapeHtml(visit.operator)),
+          item('登记时间', UI.escapeHtml(visit.created_at)),
+          item('最后更新', UI.escapeHtml(visit.updated_at)),
+        ].join('');
+
+        document.getElementById('diagnosis').textContent = visit.diagnosis || '-';
+        document.getElementById('treatment').textContent = visit.treatment || '-';
+        document.getElementById('prescription').textContent = visit.prescription || '-';
+        document.getElementById('note').textContent = visit.note || '-';
+        if (visit.attachment) {
+          document.getElementById('attachment').innerHTML =
+            `<a href="${UI.escapeHtml(visit.attachment)}" target="_blank">下载附件</a>`;
+        }
+
+        document.getElementById('histories').innerHTML = visit.histories.length
+          ? visit.histories.map((row) => `
+              <li>
+                <div class="t-head">${UI.escapeHtml(row.action)}</div>
+                ${row.note ? `<div>${UI.escapeHtml(row.note)}</div>` : ''}
+                <div class="t-meta">${UI.escapeHtml(row.operator)} · ${UI.escapeHtml(row.created_at)}</div>
+              </li>`).join('')
+          : '<li><div class="t-meta">暂无操作记录</div></li>';
+      } catch (error) {
+        UI.toast(error.message, 'error');
+      }
+    })();
+  </script>
+</body>
+</html>

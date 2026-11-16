@@ -1,0 +1,30 @@
+{% if page_obj %}
+<div class="pagination-bar">
+    <div class="pagination-summary">
+        共 {{ page_obj.paginator.count }} 条，第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="列表分页">
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page_obj.number == 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&amp;{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}" aria-label="首页"><i class="bi bi-chevron-double-left"></i></a>
+            </li>
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                {% if page_obj.has_previous %}
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&amp;{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}" aria-label="上一页"><i class="bi bi-chevron-left"></i></a>
+                {% else %}<span class="page-link"><i class="bi bi-chevron-left"></i></span>{% endif %}
+            </li>
+            <li class="page-item active" aria-current="page"><span class="page-link">{{ page_obj.number }}</span></li>
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                {% if page_obj.has_next %}
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&amp;{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}" aria-label="下一页"><i class="bi bi-chevron-right"></i></a>
+                {% else %}<span class="page-link"><i class="bi bi-chevron-right"></i></span>{% endif %}
+            </li>
+            <li class="page-item {% if page_obj.number == page_obj.paginator.num_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&amp;{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}" aria-label="末页"><i class="bi bi-chevron-double-right"></i></a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>患者注册 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="logo"><i class="bi bi-person-plus"></i><span>患者自助注册</span></div>
+    <p class="sub">注册后即可在线预约挂号</p>
+
+    <div id="register-alert" class="alert alert-error" style="display:none"></div>
+
+    <form id="register-form" novalidate>
+      <div class="field">
+        <label for="username">登录账号</label>
+        <input type="text" id="username" name="username" minlength="5" placeholder="至少 5 个字符" required>
+      </div>
+      <div class="field">
+        <label for="first_name">真实姓名</label>
+        <input type="text" id="first_name" name="first_name" placeholder="请输入姓名" required>
+      </div>
+      <div class="field">
+        <label for="phone">联系电话</label>
+        <input type="text" id="phone" name="phone" placeholder="选填">
+      </div>
+      <div class="field">
+        <label for="password1">登录密码</label>
+        <input type="password" id="password1" name="password1" minlength="5" placeholder="至少 5 个字符" required>
+      </div>
+      <div class="field">
+        <label for="password2">确认密码</label>
+        <input type="password" id="password2" name="password2" minlength="5" placeholder="再次输入密码" required>
+      </div>
+      <button type="submit" class="btn btn-primary" id="register-btn">
+        <i class="bi bi-check2-circle"></i> 注册并登录
+      </button>
+    </form>
+
+    <div class="auth-foot">已有账号？<a href="login.html">返回登录</a></div>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+    (function () {
+      const form = document.getElementById('register-form');
+      const alertBox = document.getElementById('register-alert');
+      const button = document.getElementById('register-btn');
+
+      API.get('/auth/me/').catch(() => {});
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        alertBox.style.display = 'none';
+        const data = UI.formToObject(form);
+        if (!data.username || data.username.length < 5) {
+          alertBox.textContent = '登录账号至少 5 个字符。';
+          alertBox.style.display = 'block';
+          return;
+        }
+        if (!data.password1 || data.password1 !== data.password2) {
+          alertBox.textContent = '两次输入的密码不一致。';
+          alertBox.style.display = 'block';
+          return;
+        }
+        UI.setLoading(button, true, '注册中…');
+        try {
+          await API.post('/auth/register/', data);
+          location.href = 'index.html';
+        } catch (error) {
+          alertBox.textContent = error.message || '注册失败';
+          alertBox.style.display = 'block';
+          UI.setLoading(button, false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

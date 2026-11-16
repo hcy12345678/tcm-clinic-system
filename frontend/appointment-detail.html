@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>预约详情 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="appointments">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>预约详情</h1>
+          <div class="sub" id="page-sub">正在加载…</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-light" href="appointments.html"><i class="bi bi-arrow-left"></i> 返回列表</a>
+          <a class="btn btn-light" id="edit-link" href="#"><i class="bi bi-pencil"></i> 编辑</a>
+          <button class="btn btn-danger" id="cancel-btn" style="display:none"><i class="bi bi-x-circle"></i> 取消预约</button>
+        </div>
+      </div>
+
+      <div class="card"><h2>预约信息</h2><div class="detail-grid" id="detail"></div></div>
+      <div class="card"><h2>就诊安排</h2><div class="detail-grid" id="schedule-detail"></div></div>
+      <div class="card"><h2>症状描述</h2><p id="symptoms" style="margin:0;color:#3f4c5a"></p></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('appointments');
+      if (!me) return;
+
+      const id = UI.qs('id');
+      if (!id) { location.href = 'appointments.html'; return; }
+      document.getElementById('edit-link').href = `appointment-form.html?id=${id}`;
+
+      function item(label, value) {
+        return `<div class="detail-item"><span class="k">${label}</span><span class="v">${value}</span></div>`;
+      }
+
+      async function load() {
+        try {
+          const row = await API.get(`/appointments/${id}/`);
+          document.getElementById('page-sub').textContent = row.appointment_no;
+          document.getElementById('detail').innerHTML = [
+            item('预约编号', UI.escapeHtml(row.appointment_no)),
+            item('预约状态', UI.badge(row.status, row.status_display)),
+            item('患者姓名', UI.escapeHtml(row.patient_name)),
+            item('患者账号', UI.escapeHtml(row.patient_username)),
+            item('联系电话', UI.escapeHtml(row.patient_phone || '-')),
+            item('预约时间', UI.escapeHtml(row.created_at)),
+          ].join('');
+          document.getElementById('schedule-detail').innerHTML = [
+            item('出诊医师', UI.escapeHtml(row.schedule.doctor_name)),
+            item('所属科室', UI.escapeHtml(row.schedule.department)),
+            item('就诊日期', UI.escapeHtml(row.schedule.date)),
+            item('就诊时段', `${row.schedule.start_time} - ${row.schedule.end_time}`),
+            item('诊室', UI.escapeHtml(row.schedule.room)),
+            item('号源状态', `剩余 ${row.schedule.remaining_slots} / ${row.schedule.total_slots}`),
+          ].join('');
+          document.getElementById('symptoms').textContent = row.symptoms || '未填写';
+
+          if (row.visit_id) {
+            document.getElementById('edit-link').style.display = 'none';
+            const link = document.createElement('a');
+            link.className = 'btn btn-primary';
+            link.href = `visit-detail.html?id=${row.visit_id}`;
+            link.innerHTML = '<i class="bi bi-journal-medical"></i> 查看就诊记录';
+            document.querySelector('.page-head .actions').appendChild(link);
+          }
+          if (row.status === 'BOOKED') {
+            document.getElementById('cancel-btn').style.display = 'inline-flex';
+          }
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      document.getElementById('cancel-btn').addEventListener('click', async () => {
+        const confirmed = await UI.confirm('取消后该号源会被释放，确定取消吗？', { title: '取消预约', okText: '取消预约', danger: true });
+        if (!confirmed) return;
+        try {
+          await API.post(`/appointments/${id}/cancel/`);
+          UI.toast('预约已取消');
+          load();
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      });
+
+      load();
+    })();
+  </script>
+</body>
+</html>

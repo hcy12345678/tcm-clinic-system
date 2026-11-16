@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}查询统计{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>查询统计</h1><p class="text-secondary mb-0">按医师、日期和状态统计门诊预约及就诊情况</p></div>
+    <div class="page-actions no-print">
+        <a class="btn btn-outline-success" href="{% url 'export_appointments' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"><i class="bi bi-download me-1"></i>导出预约</a>
+        <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="{% url 'print_report' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"><i class="bi bi-printer me-1"></i>打印报表</a>
+    </div>
+</div>
+
+<div class="card filter-card no-print">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-3">
+                <label for="doctor" class="form-label">医师</label>
+                <select class="form-select" id="doctor" name="doctor">
+                    <option value="">全部医师</option>
+                    {% for doctor in doctors %}<option value="{{ doctor.id }}" {% if selected_doctor == doctor.id|stringformat:"s" %}selected{% endif %}>{{ doctor.user.first_name|default:doctor.user.username }}（{{ doctor.department|default:"未分科室" }}）</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-2"><label for="start_date" class="form-label">开始日期</label><input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}"></div>
+            <div class="col-md-6 col-xl-2"><label for="end_date" class="form-label">结束日期</label><input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}"></div>
+            <div class="col-md-6 col-xl-2">
+                <label for="status" class="form-label">预约状态</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option value="BOOKED" {% if selected_status == 'BOOKED' %}selected{% endif %}>已预约</option>
+                    <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>已完成</option>
+                    <option value="CANCELLED" {% if selected_status == 'CANCELLED' %}selected{% endif %}>已取消</option>
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-3 filter-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>统计查询</button><a href="{% url 'statistics' %}" class="btn btn-outline-secondary">重置</a></div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3"><div class="card stat-card h-100"><div class="card-body"><span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-journal-medical"></i></span><div><span class="stat-label">预约总数</span><strong class="stat-value">{{ stats.total_appointments|default:0 }}</strong></div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card stat-card h-100"><div class="card-body"><span class="stat-icon bg-info-subtle text-info"><i class="bi bi-clipboard2-pulse"></i></span><div><span class="stat-label">就诊总数</span><strong class="stat-value">{{ stats.total_visits|default:0 }}</strong></div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card stat-card h-100"><div class="card-body"><span class="stat-icon bg-success-subtle text-success"><i class="bi bi-check2-circle"></i></span><div><span class="stat-label">完成就诊</span><strong class="stat-value">{{ stats.completed_visits|default:0 }}</strong></div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card stat-card h-100"><div class="card-body"><span class="stat-icon bg-secondary-subtle text-secondary"><i class="bi bi-x-circle"></i></span><div><span class="stat-label">取消预约</span><strong class="stat-value">{{ stats.cancelled_appointments|default:0 }}</strong></div></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+        <div class="card chart-card h-100"><div class="card-header"><h2 class="card-title">预约趋势</h2></div><div class="card-body"><div id="trend-chart" class="chart-container"></div><div id="trend-empty" class="chart-empty d-none">暂无趋势数据</div></div></div>
+    </div>
+    <div class="col-12 col-xl-6">
+        <div class="card chart-card h-100"><div class="card-header"><h2 class="card-title">预约状态分布</h2></div><div class="card-body"><div id="status-chart" class="chart-container"></div><div id="status-empty" class="chart-empty d-none">暂无状态数据</div></div></div>
+    </div>
+    <div class="col-12">
+        <div class="card chart-card"><div class="card-header"><h2 class="card-title">科室预约量</h2></div><div class="card-body"><div id="department-chart" class="chart-container"></div><div id="department-empty" class="chart-empty d-none">暂无科室数据</div></div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">最近预约记录</h2><span class="text-secondary small">最多显示 20 条</span></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>预约编号</th><th>患者</th><th>医师</th><th>科室</th><th>就诊日期</th><th>状态</th><th>预约时间</th></tr></thead>
+                <tbody>
+                {% for record in records %}
+                    <tr><td class="fw-medium">{{ record.appointment_no }}</td><td>{{ record.patient.first_name|default:record.patient.username }}</td><td>{{ record.schedule.doctor.user.first_name|default:record.schedule.doctor.user.username }}</td><td>{{ record.schedule.doctor.department|default:"-" }}</td><td>{{ record.schedule.date|date:"Y-m-d" }}</td><td><span class="badge status-badge status-{{ record.status|lower }}">{{ record.get_status_display|default:record.status }}</span></td><td>{{ record.created_at|date:"Y-m-d H:i" }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-state">当前条件下暂无预约记录</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ chart_data|json_script:"chart-data" }}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script>
+(function () {
+    var dataElement = document.getElementById('chart-data');
+    var chartData = dataElement ? JSON.parse(dataElement.textContent) : {};
+    var charts = [];
+
+    function hasData(labels, values) {
+        return Array.isArray(labels) && labels.length > 0 && Array.isArray(values) && values.length > 0;
+    }
+
+    function showEmpty(name) {
+        document.getElementById(name + '-chart').classList.add('d-none');
+        document.getElementById(name + '-empty').classList.remove('d-none');
+    }
+
+    if (!window.echarts) {
+        ['trend', 'status', 'department'].forEach(showEmpty);
+        return;
+    }
+
+    if (hasData(chartData.trend_labels, chartData.trend_values)) {
+        var trendChart = echarts.init(document.getElementById('trend-chart'));
+        trendChart.setOption({
+            color: ['#1769aa'],
+            tooltip: {trigger: 'axis'},
+            grid: {left: 45, right: 20, top: 25, bottom: 45},
+            xAxis: {type: 'category', data: chartData.trend_labels, boundaryGap: false},
+            yAxis: {type: 'value', minInterval: 1},
+            series: [{name: '预约量', type: 'line', data: chartData.trend_values, smooth: true, areaStyle: {opacity: 0.08}}]
+        });
+        charts.push(trendChart);
+    } else { showEmpty('trend'); }
+
+    if (hasData(chartData.status_labels, chartData.status_values)) {
+        var statusChart = echarts.init(document.getElementById('status-chart'));
+        statusChart.setOption({
+            color: ['#1769aa', '#2e8b57', '#dc3545', '#6c757d', '#e0a800'],
+            tooltip: {trigger: 'item'},
+            legend: {bottom: 0},
+            series: [{name: '预约状态', type: 'pie', radius: ['35%', '62%'], center: ['50%', '45%'], label: {formatter: '{b}: {c}'}, data: chartData.status_labels.map(function (label, index) { return {name: label, value: chartData.status_values[index]}; })}]
+        });
+        charts.push(statusChart);
+    } else { showEmpty('status'); }
+
+    if (hasData(chartData.department_labels, chartData.department_values)) {
+        var departmentChart = echarts.init(document.getElementById('department-chart'));
+        departmentChart.setOption({
+            color: ['#3b82b6'],
+            tooltip: {trigger: 'axis'},
+            grid: {left: 50, right: 25, top: 25, bottom: 50},
+            xAxis: {type: 'category', data: chartData.department_labels, axisLabel: {interval: 0, rotate: chartData.department_labels.length > 6 ? 25 : 0}},
+            yAxis: {type: 'value', minInterval: 1},
+            series: [{name: '预约量', type: 'bar', data: chartData.department_values, barMaxWidth: 45}]
+        });
+        charts.push(departmentChart);
+    } else { showEmpty('department'); }
+
+    window.addEventListener('resize', function () { charts.forEach(function (chart) { chart.resize(); }); });
+})();
+</script>
+{% endblock %}

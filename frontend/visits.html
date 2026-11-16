@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>就诊登记 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="visits">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>就诊登记</h1>
+          <div class="sub">填写中医诊断、治疗方案与处方，状态变更自动留痕</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="visit-form.html"><i class="bi bi-plus-lg"></i> 新增登记</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <form class="filter-bar" id="filter-form">
+          <div class="field">
+            <label>关键词</label>
+            <input type="text" name="keyword" placeholder="预约编号 / 患者 / 诊断">
+          </div>
+          <div class="field">
+            <label>状态</label>
+            <select name="status">
+              <option value="">全部状态</option>
+              <option value="PENDING">待接诊</option>
+              <option value="IN_PROGRESS">就诊中</option>
+              <option value="FINISHED">已完成</option>
+              <option value="CANCELLED">已取消</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> 查询</button>
+          <button type="reset" class="btn btn-light">重置</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div id="visit-table"></div>
+        <div class="pagination" id="visit-pagination"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('visits');
+      if (!me) return;
+
+      const state = { page: 1, params: {} };
+      const filterForm = document.getElementById('filter-form');
+
+      function columns() {
+        return [
+          { title: '预约编号', render: (row) => `<a class="link-btn" href="visit-detail.html?id=${row.id}">${UI.escapeHtml(row.appointment_no)}</a>` },
+          { title: '患者', render: (row) => UI.escapeHtml(row.patient_name) },
+          { title: '医师', render: (row) => UI.escapeHtml(row.doctor_name) },
+          { title: '科室', render: (row) => UI.escapeHtml(row.department) },
+          { title: '就诊时间', render: (row) => UI.escapeHtml(row.visit_time) },
+          { title: '状态', render: (row) => UI.badge(row.status, row.status_display) },
+          { title: '经办人', render: (row) => UI.escapeHtml(row.operator) },
+          { title: '操作', render: (row) => `<div class="actions-cell">
+              <a class="link-btn" href="visit-detail.html?id=${row.id}">详情</a>
+              ${me.user.role === 'PATIENT' ? '' : `<a class="link-btn" href="visit-form.html?id=${row.id}">编辑</a>`}
+            </div>` },
+        ];
+      }
+
+      async function load(page) {
+        state.page = page || 1;
+        try {
+          const data = await API.get('/visits/', Object.assign({ page: state.page }, state.params));
+          document.getElementById('visit-table').innerHTML = UI.table(columns(), data.results, { empty: '没有符合条件的就诊记录。' });
+          UI.pagination(document.getElementById('visit-pagination'), data, load);
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      filterForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.params = UI.formToObject(filterForm);
+        load(1);
+      });
+      filterForm.addEventListener('reset', () => {
+        state.params = {};
+        setTimeout(() => load(1), 0);
+      });
+
+      load(1);
+    })();
+  </script>
+</body>
+</html>

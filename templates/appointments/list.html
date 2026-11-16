@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}预约挂号{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1>预约挂号</h1><p class="text-secondary mb-0">查询预约记录、维护明细和跟踪预约状态</p></div>
+    <a href="{% url 'appointment_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>创建预约</a>
+</div>
+
+<div class="card filter-card">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-3">
+                <label for="keyword" class="form-label">关键词</label>
+                <input type="text" class="form-control" id="keyword" name="keyword" value="{{ keyword }}" placeholder="预约编号、患者或医师">
+            </div>
+            <div class="col-md-6 col-xl-2">
+                <label for="doctor" class="form-label">医师</label>
+                <select class="form-select" id="doctor" name="doctor">
+                    <option value="">全部医师</option>
+                    {% for doctor in doctors %}<option value="{{ doctor.id }}" {% if request.GET.doctor == doctor.id|stringformat:"s" %}selected{% endif %}>{{ doctor.user.first_name|default:doctor.user.username }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-2">
+                <label for="status" class="form-label">预约状态</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option value="BOOKED" {% if selected_status == 'BOOKED' %}selected{% endif %}>已预约</option>
+                    <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>已完成</option>
+                    <option value="CANCELLED" {% if selected_status == 'CANCELLED' %}selected{% endif %}>已取消</option>
+                </select>
+            </div>
+            <div class="col-md-6 col-xl-2"><label for="start_date" class="form-label">开始日期</label><input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}"></div>
+            <div class="col-md-6 col-xl-2"><label for="end_date" class="form-label">结束日期</label><input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}"></div>
+            <div class="col-md-6 col-xl-1 filter-actions"><button type="submit" class="btn btn-primary">查询</button><a href="{% url 'appointment_list' %}" class="btn btn-link">重置</a></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">预约记录</h2></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>预约编号</th><th>患者</th><th>医师</th><th>就诊日期</th><th>就诊时段</th><th>状态</th><th>预约时间</th><th class="text-end">操作</th></tr></thead>
+                <tbody>
+                {% for appointment in appointments %}
+                    <tr>
+                        <td class="fw-medium">{{ appointment.appointment_no }}</td>
+                        <td>{{ appointment.patient.first_name|default:appointment.patient.username }}</td>
+                        <td>{{ appointment.schedule.doctor.user.first_name|default:appointment.schedule.doctor.user.username }}</td>
+                        <td>{{ appointment.schedule.date|date:"Y-m-d" }}</td>
+                        <td>{{ appointment.schedule.start_time|time:"H:i" }} - {{ appointment.schedule.end_time|time:"H:i" }}</td>
+                        <td><span class="badge status-badge status-{{ appointment.status|lower }}">{{ appointment.get_status_display|default:appointment.status }}</span></td>
+                        <td>{{ appointment.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <div class="table-actions justify-content-end">
+                                <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-secondary">详情</a>
+                                {% if request.user.role != 'PATIENT' or appointment.status == 'BOOKED' %}<a href="{% url 'appointment_edit' appointment.id %}" class="btn btn-sm btn-outline-primary">编辑</a>{% endif %}
+                                {% if appointment.status == 'BOOKED' %}
+                                    {% if request.user.role == 'ADMIN' or request.user.role == 'PATIENT' %}
+                                    <form method="post" action="{% url 'appointment_cancel' appointment.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="确定要取消预约 {{ appointment.appointment_no }} 吗？">取消</button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="empty-state">暂无符合条件的预约记录</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'includes/pagination.html' with page_obj=appointments %}
+    </div>
+</div>
+{% endblock %}

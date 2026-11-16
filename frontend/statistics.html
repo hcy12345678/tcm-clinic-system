@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>查询统计 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="statistics">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>查询统计</h1>
+          <div class="sub">多条件查询，Pandas 聚合后由 ECharts 渲染三张图表</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-light" id="export-btn"><i class="bi bi-download"></i> 导出 CSV</button>
+          <button class="btn btn-light" id="print-btn"><i class="bi bi-printer"></i> 打印</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <form class="filter-bar" id="filter-form">
+          <div class="field">
+            <label>医师</label>
+            <select name="doctor" id="doctor-filter"><option value="">全部医师</option></select>
+          </div>
+          <div class="field">
+            <label>开始日期</label>
+            <input type="date" name="start_date">
+          </div>
+          <div class="field">
+            <label>结束日期</label>
+            <input type="date" name="end_date">
+          </div>
+          <div class="field">
+            <label>预约状态</label>
+            <select name="status">
+              <option value="">全部状态</option>
+              <option value="BOOKED">已预约</option>
+              <option value="COMPLETED">已完成</option>
+              <option value="CANCELLED">已取消</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> 统计</button>
+          <button type="reset" class="btn btn-light">重置</button>
+        </form>
+      </div>
+
+      <div class="stat-grid" id="stat-cards"></div>
+
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>预约量趋势</h3>
+          <div class="chart-canvas" id="trend-chart"></div>
+        </div>
+        <div class="chart-box">
+          <h3>预约状态分布</h3>
+          <div class="chart-canvas" id="status-chart"></div>
+        </div>
+        <div class="chart-box" style="grid-column:1/-1">
+          <h3>科室预约量对比</h3>
+          <div class="chart-canvas" id="department-chart"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>明细数据（最近 20 条）</h2>
+        <div id="record-table"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/vendor/echarts.min.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('statistics');
+      if (!me) return;
+
+      const charts = {};
+      const state = { params: {} };
+      const filterForm = document.getElementById('filter-form');
+
+      function initChart(id) {
+        if (!window.echarts) return null;
+        if (!charts[id]) charts[id] = echarts.init(document.getElementById(id));
+        return charts[id];
+      }
+
+      window.addEventListener('resize', () => {
+        Object.values(charts).forEach((chart) => chart.resize());
+      });
+
+      try {
+        const doctors = await API.get('/doctors/');
+        document.getElementById('doctor-filter').innerHTML =
+          '<option value="">全部医师</option>' +
+          doctors.map((item) => `<option value="${item.id}">${UI.escapeHtml(item.name)}（${UI.escapeHtml(item.department)}）</option>`).join('');
+      } catch (error) { /* 忽略 */ }
+
+      function renderStats(stats) {
+        const cards = [
+          { label: '预约总数', value: stats.total_appointments },
+          { label: '就诊总数', value: stats.total_visits },
+          { label: '完成就诊', value: stats.completed_visits },
+          { label: '已取消预约', value: stats.cancelled_appointments },
+        ];
+        document.getElementById('stat-cards').innerHTML = cards.map((card) => `
+          <div class="stat-card">
+            <div class="label">${card.label}</div>
+            <div class="value">${card.value}<span class="unit">条</span></div>
+          </div>`).join('');
+      }
+
+      function emptyOption(text) {
+        return {
+          title: { text, left: 'center', top: 'middle', textStyle: { color: '#8a97a5', fontSize: 13, fontWeight: 'normal' } },
+        };
+      }
+
+      function renderCharts(data) {
+        const trend = initChart('trend-chart');
+        if (trend) {
+          trend.setOption(data.trend_labels.length ? {
+            tooltip: { trigger: 'axis' },
+            grid: { left: 46, right: 22, top: 26, bottom: 48 },
+            xAxis: { type: 'category', data: data.trend_labels, axisLabel: { rotate: 30, fontSize: 11, color: '#6b7785' } },
+            yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#eef2f7' } }, axisLabel: { color: '#6b7785' } },
+            series: [{ type: 'line', smooth: true, data: data.trend_values, symbolSize: 7, itemStyle: { color: '#0f6fbf' }, areaStyle: { color: 'rgba(15,111,191,.12)' } }],
+          } : emptyOption('当前条件下暂无数据'), true);
+        }
+
+        const statusChart = initChart('status-chart');
+        if (statusChart) {
+          statusChart.setOption(data.status_labels.length ? {
+            tooltip: { trigger: 'item' },
+            legend: { bottom: 0, textStyle: { fontSize: 12, color: '#6b7785' } },
+            series: [{
+              type: 'pie', radius: ['42%', '66%'], center: ['50%', '46%'],
+              itemStyle: { borderColor: '#fff', borderWidth: 2 },
+              label: { formatter: '{b}\n{d}%', fontSize: 11, color: '#4b5866' },
+              data: data.status_labels.map((label, index) => ({ name: label, value: data.status_values[index] })),
+              color: ['#0f6fbf', '#0f9d58', '#b9c2cc'],
+            }],
+          } : emptyOption('当前条件下暂无数据'), true);
+        }
+
+        const departmentChart = initChart('department-chart');
+        if (departmentChart) {
+          departmentChart.setOption(data.department_labels.length ? {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 60, right: 24, top: 24, bottom: 40 },
+            xAxis: { type: 'category', data: data.department_labels, axisLabel: { fontSize: 11, color: '#6b7785' } },
+            yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#eef2f7' } }, axisLabel: { color: '#6b7785' } },
+            series: [{ type: 'bar', barWidth: '46%', itemStyle: { color: '#0f9d9d', borderRadius: [6, 6, 0, 0] }, label: { show: true, position: 'top', color: '#4b5866' }, data: data.department_values }],
+          } : emptyOption('当前条件下暂无数据'), true);
+        }
+      }
+
+      function renderRecords(records) {
+        document.getElementById('record-table').innerHTML = UI.table([
+          { title: '预约编号', render: (row) => UI.escapeHtml(row.appointment_no) },
+          { title: '患者', render: (row) => UI.escapeHtml(row.patient_name) },
+          { title: '医师', render: (row) => UI.escapeHtml(row.doctor_name) },
+          { title: '科室', render: (row) => UI.escapeHtml(row.department) },
+          { title: '就诊日期', render: (row) => UI.escapeHtml(row.date) },
+          { title: '状态', render: (row) => UI.badge(row.status, row.status_display) },
+          { title: '预约时间', render: (row) => UI.escapeHtml(row.created_at) },
+        ], records, { empty: '当前条件下暂无预约记录。' });
+      }
+
+      async function load() {
+        try {
+          const data = await API.get('/statistics/', state.params);
+          renderStats(data.stats);
+          renderCharts(data.chart_data);
+          renderRecords(data.records);
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      filterForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.params = UI.formToObject(filterForm);
+        load();
+      });
+      filterForm.addEventListener('reset', () => {
+        state.params = {};
+        setTimeout(load, 0);
+      });
+
+      document.getElementById('export-btn').addEventListener('click', () => {
+        window.location.href = API.url('/statistics/export/', state.params);
+      });
+
+      document.getElementById('print-btn').addEventListener('click', () => window.print());
+
+      load();
+    })();
+  </script>
+</body>
+</html>

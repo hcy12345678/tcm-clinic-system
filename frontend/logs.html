@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>操作日志 · 中医门诊预约系统</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-page="logs">
+  <header class="topbar" id="layout-topbar"></header>
+  <div class="layout-body">
+    <aside class="sidebar" id="layout-sidebar"></aside>
+    <main class="layout-main">
+      <div class="page-head">
+        <div>
+          <h1>操作日志</h1>
+          <div class="sub">记录关键写操作的操作人、IP 与时间，可按模块与日期筛选</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <form class="filter-bar" id="filter-form">
+          <div class="field">
+            <label>功能模块</label>
+            <select name="module" id="module-filter"><option value="">全部模块</option></select>
+          </div>
+          <div class="field">
+            <label>关键词</label>
+            <input type="text" name="keyword" placeholder="操作类型 / 详情 / 操作人">
+          </div>
+          <div class="field">
+            <label>开始日期</label>
+            <input type="date" name="start_date">
+          </div>
+          <div class="field">
+            <label>结束日期</label>
+            <input type="date" name="end_date">
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> 查询</button>
+          <button type="reset" class="btn btn-light">重置</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div id="log-table"></div>
+        <div class="pagination" id="log-pagination"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    (async function () {
+      const me = await Layout.mount('logs');
+      if (!me) return;
+
+      const state = { page: 1, params: {} };
+      const filterForm = document.getElementById('filter-form');
+
+      function columns() {
+        return [
+          { title: '操作时间', render: (row) => UI.escapeHtml(row.created_at) },
+          { title: '操作人', render: (row) => UI.escapeHtml(row.operator) },
+          { title: '模块', render: (row) => `<span class="pill pill-secondary">${UI.escapeHtml(row.module)}</span>` },
+          { title: '操作类型', render: (row) => UI.escapeHtml(row.action) },
+          { title: '业务对象', render: (row) => UI.escapeHtml(row.object_id || '-') },
+          { title: '详情', render: (row) => UI.escapeHtml(row.detail || '-') },
+          { title: 'IP', render: (row) => UI.escapeHtml(row.ip_address) },
+        ];
+      }
+
+      async function load(page) {
+        state.page = page || 1;
+        try {
+          const data = await API.get('/logs/', Object.assign({ page: state.page }, state.params));
+          document.getElementById('log-table').innerHTML = UI.table(columns(), data.results, { empty: '没有符合条件的日志。' });
+          UI.pagination(document.getElementById('log-pagination'), data, load);
+
+          const moduleFilter = document.getElementById('module-filter');
+          if (moduleFilter.options.length <= 1 && data.modules.length) {
+            moduleFilter.innerHTML = '<option value="">全部模块</option>' +
+              data.modules.map((item) => `<option value="${UI.escapeHtml(item)}">${UI.escapeHtml(item)}</option>`).join('');
+            moduleFilter.value = state.params.module || '';
+          }
+        } catch (error) {
+          UI.toast(error.message, 'error');
+        }
+      }
+
+      filterForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.params = UI.formToObject(filterForm);
+        load(1);
+      });
+      filterForm.addEventListener('reset', () => {
+        state.params = {};
+        setTimeout(() => load(1), 0);
+      });
+
+      load(1);
+    })();
+  </script>
+</body>
+</html>
